@@ -110,11 +110,29 @@
     .diagram-wrap {
       background: var(--card); border: 1px solid var(--border);
       border-radius: var(--r); padding: 8px; overflow: hidden;
+      position: relative;
     }
     .diagram-wrap svg {
       width: 100%; height: auto; max-height: 255px;
       display: block; transition: opacity 0.2s; user-select: none;
+      cursor: grab;
     }
+    .diagram-wrap svg:active { cursor: grabbing; }
+
+    .zoom-btns {
+      position: absolute; bottom: 12px; right: 12px;
+      display: flex; flex-direction: column; gap: 3px;
+    }
+    .zoom-btn {
+      width: 26px; height: 26px; border-radius: 5px;
+      border: 1px solid var(--border); background: white;
+      color: var(--navy); font-size: 15px; line-height: 1;
+      cursor: pointer; font-family: inherit;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+      transition: background 0.1s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .zoom-btn:hover { background: var(--bg); }
 
     /* ── Panel ──────────────────────────── */
     .panel {
@@ -169,15 +187,22 @@
 
 <div class="toolbar">
   <span class="hint">
-    <kbd>drag</kbd> to move &nbsp;·&nbsp;
-    <kbd>click</kbd> empty space to add &nbsp;·&nbsp;
-    <kbd>×</kbd> to remove
+    <kbd>scroll</kbd> zoom &nbsp;·&nbsp;
+    <kbd>drag bg</kbd> pan &nbsp;·&nbsp;
+    <kbd>drag shop</kbd> move &nbsp;·&nbsp;
+    <kbd>click</kbd> add &nbsp;·&nbsp;
+    <kbd>×</kbd> remove
   </span>
 </div>
 
 <div class="viz-grid">
   <div class="diagram-wrap">
     <svg id="diagram" viewBox="0 0 580 340" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="zoom-btns">
+      <button class="zoom-btn" onclick="zoomBy(1.35)" title="Zoom in">+</button>
+      <button class="zoom-btn" onclick="zoomBy(1/1.35)" title="Zoom out">−</button>
+      <button class="zoom-btn" onclick="resetZoom()" title="Reset view">⊙</button>
+    </div>
   </div>
   <div id="panel" class="panel"></div>
 </div>
@@ -206,6 +231,9 @@ let shops       = DEFAULT_SHOPS.map(s => ({ ...s }));
 let nextCode    = 71;   // 'G'
 let drag        = null;
 let wasDragging = false;
+let zoom        = { tx: 0, ty: 0, scale: 1 };
+let isPanning   = false;
+let panStart    = null;
 
 /* ── Maths ───────────────────────────────────── */
 function kernel(distPx) {
@@ -251,6 +279,28 @@ function svgPt(svg, cx, cy) {
   return pt.matrixTransform(svg.getScreenCTM().inverse());
 }
 
+function toLocal(svgX, svgY) {
+  return { x: (svgX - zoom.tx) / zoom.scale, y: (svgY - zoom.ty) / zoom.scale };
+}
+
+/* ── Zoom helpers ─────────────────────────────── */
+function applyZoom() {
+  const g = document.getElementById('diag-content');
+  if (g) g.setAttribute('transform', `translate(${zoom.tx},${zoom.ty}) scale(${zoom.scale})`);
+}
+
+function zoomAt(svgX, svgY, factor) {
+  const s = Math.max(0.4, Math.min(8, zoom.scale * factor));
+  zoom.tx = svgX - (svgX - zoom.tx) * (s / zoom.scale);
+  zoom.ty = svgY - (svgY - zoom.ty) * (s / zoom.scale);
+  zoom.scale = s;
+  applyZoom();
+}
+
+function zoomBy(factor) { zoomAt(290, 170, factor); }
+
+function resetZoom() { zoom = { tx: 0, ty: 0, scale: 1 }; applyZoom(); }
+
 /* ── Redraw ───────────────────────────────────── */
 function redraw() { drawDiagram(mode); updatePanel(mode); }
 
@@ -287,7 +337,8 @@ function drawDiagram(m) {
     });
   }
 
-  const g = el('g', { 'clip-path': 'url(#clip)' }, svg);
+  const g = el('g', { id: 'diag-content', 'clip-path': 'url(#clip)',
+    transform: `translate(${zoom.tx},${zoom.ty}) scale(${zoom.scale})` }, svg);
 
   // Transparent click target
   el('rect', { x:0, y:0, width:580, height:340, fill:'transparent', 'data-bg':'1' }, g);
@@ -455,26 +506,29 @@ function updateBuffer(m) {
   redraw();
 }
 
-/* ── Drag & click ─────────────────────────────── */
+/* ── Interactions ─────────────────────────────── */
 function initEvents() {
   const svg = document.getElementById('diagram');
 
+  /* Shop drag */
   function startDrag(target, cx, cy) {
     if (target.closest('[data-delete-idx]')) return;
     const shopEl = target.closest('[data-shop-idx]');
     if (!shopEl) return;
     const idx = parseInt(shopEl.dataset.shopIdx);
-    const pt  = svgPt(svg, cx, cy);
-    drag = { idx, ox: shops[idx].x - pt.x, oy: shops[idx].y - pt.y };
+    const sp  = svgPt(svg, cx, cy);
+    const lp  = toLocal(sp.x, sp.y);
+    drag = { idx, ox: shops[idx].x - lp.x, oy: shops[idx].y - lp.y };
     wasDragging = false;
     svg.style.cursor = 'grabbing';
   }
 
   function moveDrag(cx, cy) {
     if (!drag) return;
-    const pt = svgPt(svg, cx, cy);
-    const nx = Math.max(16, Math.min(564, Math.round(pt.x + drag.ox)));
-    const ny = Math.max(16, Math.min(324, Math.round(pt.y + drag.oy)));
+    const sp = svgPt(svg, cx, cy);
+    const lp = toLocal(sp.x, sp.y);
+    const nx = Math.max(16, Math.min(564, Math.round(lp.x + drag.ox)));
+    const ny = Math.max(16, Math.min(324, Math.round(lp.y + drag.oy)));
     if (nx !== shops[drag.idx].x || ny !== shops[drag.idx].y) {
       wasDragging = true;
       shops[drag.idx].x = nx;
@@ -484,35 +538,95 @@ function initEvents() {
   }
 
   function endDrag() {
-    if (!drag) return;
     drag = null; wasDragging = false;
     svg.style.cursor = '';
   }
 
-  svg.addEventListener('mousedown', e => { startDrag(e.target, e.clientX, e.clientY); if (drag) e.preventDefault(); });
-  window.addEventListener('mousemove', e => moveDrag(e.clientX, e.clientY));
-  window.addEventListener('mouseup', endDrag);
+  /* Pan */
+  function startPan(cx, cy) {
+    const sp = svgPt(svg, cx, cy);
+    panStart = { svgX: sp.x, svgY: sp.y, startTx: zoom.tx, startTy: zoom.ty };
+    isPanning = true;
+    wasDragging = false;
+    svg.style.cursor = 'grabbing';
+  }
 
+  function movePan(cx, cy) {
+    if (!isPanning || !panStart) return;
+    const sp = svgPt(svg, cx, cy);
+    const dx = sp.x - panStart.svgX;
+    const dy = sp.y - panStart.svgY;
+    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) wasDragging = true;
+    zoom.tx = panStart.startTx + dx;
+    zoom.ty = panStart.startTy + dy;
+    applyZoom();
+  }
+
+  function endPan() {
+    isPanning = false; panStart = null;
+    svg.style.cursor = '';
+  }
+
+  /* Mouse */
+  svg.addEventListener('mousedown', e => {
+    if (e.target.closest('[data-delete-idx]')) return;
+    const shopEl = e.target.closest('[data-shop-idx]');
+    if (shopEl) {
+      startDrag(e.target, e.clientX, e.clientY);
+    } else if (!e.target.closest('[data-home]')) {
+      startPan(e.clientX, e.clientY);
+    }
+    if (drag || isPanning) e.preventDefault();
+  });
+
+  window.addEventListener('mousemove', e => {
+    if (drag)        moveDrag(e.clientX, e.clientY);
+    else if (isPanning) movePan(e.clientX, e.clientY);
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (drag) endDrag(); else if (isPanning) endPan();
+  });
+
+  /* Wheel zoom */
+  svg.addEventListener('wheel', e => {
+    e.preventDefault();
+    const sp = svgPt(svg, e.clientX, e.clientY);
+    zoomAt(sp.x, sp.y, e.deltaY < 0 ? 1.15 : 1 / 1.15);
+  }, { passive: false });
+
+  /* Touch */
   svg.addEventListener('touchstart', e => {
     if (e.touches.length !== 1) return;
-    startDrag(e.target, e.touches[0].clientX, e.touches[0].clientY);
+    const t = e.touches[0];
+    if (t.target.closest('[data-delete-idx]')) return;
+    const shopEl = t.target.closest('[data-shop-idx]');
+    if (shopEl) startDrag(t.target, t.clientX, t.clientY);
+    else if (!t.target.closest('[data-home]')) startPan(t.clientX, t.clientY);
   }, { passive: true });
-  window.addEventListener('touchmove', e => {
-    if (!drag || e.touches.length !== 1) return;
-    moveDrag(e.touches[0].clientX, e.touches[0].clientY);
-    e.preventDefault();
-  }, { passive: false });
-  window.addEventListener('touchend', endDrag);
 
+  window.addEventListener('touchmove', e => {
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    if (drag) { moveDrag(t.clientX, t.clientY); e.preventDefault(); }
+    else if (isPanning) { movePan(t.clientX, t.clientY); e.preventDefault(); }
+  }, { passive: false });
+
+  window.addEventListener('touchend', () => {
+    if (drag) endDrag(); else if (isPanning) endPan();
+  });
+
+  /* Click: delete or add shop */
   svg.addEventListener('click', e => {
     const was = wasDragging; wasDragging = false;
     if (was) return;
     const del = e.target.closest('[data-delete-idx]');
     if (del) { shops.splice(parseInt(del.dataset.deleteIdx), 1); redraw(); return; }
     if (!e.target.closest('[data-shop-idx]') && !e.target.closest('[data-home]')) {
-      const pt = svgPt(svg, e.clientX, e.clientY);
-      if (pt.x < 10 || pt.x > 570 || pt.y < 10 || pt.y > 330) return;
-      shops.push({ id: nextId(), x: Math.round(pt.x), y: Math.round(pt.y) });
+      const sp = svgPt(svg, e.clientX, e.clientY);
+      if (sp.x < 10 || sp.x > 570 || sp.y < 10 || sp.y > 330) return;
+      const lp = toLocal(sp.x, sp.y);
+      shops.push({ id: nextId(), x: Math.round(lp.x), y: Math.round(lp.y) });
       redraw();
     }
   });
