@@ -19,34 +19,40 @@
       --r:      10px;
     }
 
+    html, body { height: 100%; overflow: hidden; }
+
     body {
       font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
       background: var(--bg);
       color: var(--text);
       font-size: 15px;
       line-height: 1.5;
-      padding: 18px 22px 22px;
+      padding: 10px 14px 10px;
+      display: flex;
+      flex-direction: column;
     }
 
     .title {
-      font-size: 1.15rem;
+      font-size: 1rem;
       font-weight: 700;
       color: var(--navy);
-      margin-bottom: 14px;
+      margin-bottom: 6px;
+      flex-shrink: 0;
     }
 
     /* ── Controls ───────────────────────── */
     .controls {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       flex-wrap: wrap;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
+      flex-shrink: 0;
     }
 
-    .toggle-group { display: flex; gap: 8px; }
+    .toggle-group { display: flex; gap: 6px; }
     .toggle {
-      padding: 8px 18px; border-radius: 7px;
+      padding: 6px 14px; border-radius: 7px;
       border: 2px solid var(--border);
       background: transparent; font-size: 13px; font-weight: 500;
       cursor: pointer; color: var(--muted);
@@ -56,13 +62,13 @@
     .toggle:hover:not(.active) { border-color: var(--navy); color: var(--navy); }
 
     .buf-row {
-      display: flex; align-items: center; gap: 10px;
+      display: flex; align-items: center; gap: 8px;
       background: var(--card); border: 1px solid var(--border);
-      border-radius: 8px; padding: 7px 14px;
+      border-radius: 8px; padding: 5px 12px;
     }
     .buf-label { font-size: 12px; color: var(--muted); white-space: nowrap; font-weight: 500; }
     .buf-slider {
-      width: 130px; cursor: pointer;
+      width: 120px; cursor: pointer;
       -webkit-appearance: none; appearance: none;
       height: 5px; border-radius: 3px; outline: none;
       background: var(--border);
@@ -70,21 +76,21 @@
     .buf-slider::-webkit-slider-runnable-track { height: 5px; border-radius: 3px; background: var(--border); }
     .buf-slider::-moz-range-track { height: 5px; border-radius: 3px; background: var(--border); }
     input.buf-slider::-webkit-slider-thumb {
-      -webkit-appearance: none; width: 18px; height: 18px;
+      -webkit-appearance: none; width: 16px; height: 16px;
       border-radius: 50%; background: var(--blue); cursor: pointer;
-      margin-top: -7px; box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+      margin-top: -6px; box-shadow: 0 1px 4px rgba(0,0,0,0.25);
     }
     .buf-slider::-moz-range-thumb {
-      width: 18px; height: 18px; border-radius: 50%;
+      width: 16px; height: 16px; border-radius: 50%;
       border: none; background: var(--blue); cursor: pointer;
     }
-    .buf-val  { font-size: 1.05rem; font-weight: 700; color: var(--blue); min-width: 48px; }
+    .buf-val  { font-size: 0.95rem; font-weight: 700; color: var(--blue); min-width: 44px; }
     .buf-note { font-size: 11px; color: var(--muted); }
     .buf-note.paper { color: #388e3c; font-weight: 500; }
 
     .reset-btn {
       margin-left: auto;
-      font-size: 12px; padding: 6px 14px; border-radius: 6px;
+      font-size: 12px; padding: 5px 12px; border-radius: 6px;
       border: 1px solid var(--border); background: transparent;
       color: var(--muted); cursor: pointer; font-family: inherit;
       transition: all 0.15s;
@@ -92,7 +98,7 @@
     .reset-btn:hover { border-color: var(--navy); color: var(--navy); }
 
     /* ── Toolbar ────────────────────────── */
-    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; flex-shrink: 0; }
     .hint { font-size: 12px; color: var(--muted); }
     .hint kbd {
       font-family: inherit; background: var(--border); border-radius: 3px;
@@ -102,28 +108,37 @@
     /* ── Viz grid ───────────────────────── */
     .viz-grid {
       display: grid;
-      grid-template-columns: 1fr 260px;
-      gap: 16px;
-      align-items: start;
+      grid-template-columns: 1fr 240px;
+      gap: 12px;
+      align-items: stretch;
+      flex: 1;
+      min-height: 0;
     }
 
     .diagram-wrap {
       background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--r); padding: 12px; overflow: hidden;
+      border-radius: var(--r); padding: 8px; overflow: hidden;
+      display: flex; flex-direction: column;
+      min-height: 0;
     }
-    .diagram-wrap svg { width: 100%; height: auto; display: block; transition: opacity 0.2s; user-select: none; }
+    .diagram-wrap svg {
+      width: 100%; height: 100%; display: block;
+      transition: opacity 0.2s; user-select: none;
+      min-height: 0; flex: 1;
+    }
 
     /* ── Panel ──────────────────────────── */
     .panel {
       background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--r); padding: 18px;
+      border-radius: var(--r); padding: 12px 14px;
+      overflow-y: auto;
     }
-    .panel h4 { font-size: 0.92rem; color: var(--navy); margin-bottom: 6px; }
-    .score-big { font-size: 2.5rem; font-weight: 700; color: var(--blue); line-height: 1; margin: 4px 0 2px; }
-    .score-label { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+    .panel h4 { font-size: 0.88rem; color: var(--navy); margin-bottom: 4px; }
+    .score-big { font-size: 2rem; font-weight: 700; color: var(--blue); line-height: 1; margin: 2px 0 2px; }
+    .score-label { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
     .shop-row {
       display: flex; justify-content: space-between; align-items: center;
-      padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+      padding: 3px 0; border-bottom: 1px solid var(--border); font-size: 12px;
     }
     .shop-row:last-of-type { border-bottom: none; }
     .shop-dist { color: var(--muted); font-size: 11px; margin-left: 4px; }
@@ -134,12 +149,13 @@
     .contrib.out { color: #ccc; }
     .callout {
       background: #e3eef9; border-left: 3px solid var(--blue);
-      padding: 9px 12px; border-radius: 0 7px 7px 0;
-      font-size: 12px; margin-top: 12px; color: var(--text); line-height: 1.5;
+      padding: 7px 10px; border-radius: 0 7px 7px 0;
+      font-size: 12px; margin-top: 8px; color: var(--text); line-height: 1.45;
     }
-    .panel-note { font-size: 11px; color: #aab; margin-top: 10px; }
+    .panel-note { font-size: 11px; color: #aab; margin-top: 8px; }
 
     @media (max-width: 680px) {
+      html, body { overflow: auto; }
       .viz-grid { grid-template-columns: 1fr; }
     }
   </style>
