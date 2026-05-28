@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kernel Density Estimation — Tobacco Outlet Density</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:   #0d2137;
+      --blue:   #1565c0;
+      --teal:   #00796b;
+      --bg:     #f0f4f9;
+      --card:   #ffffff;
+      --text:   #1a2332;
+      --muted:  #5c6a7a;
+      --border: #dde3ec;
+      --radius: 14px;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      font-size: 16px;
+    }
+
+    header {
+      background: linear-gradient(135deg, #0d2137 0%, #1a4a7a 100%);
+      padding: 32px 0 28px;
+    }
+    header .container {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      flex-wrap: wrap; gap: 12px;
+    }
+    header h1 { font-size: 1.7rem; font-weight: 700; color: #fff; line-height: 1.2; }
+    header p  { font-size: 13px; color: rgba(255,255,255,0.55); margin-top: 6px; }
+    header a  {
+      font-size: 13px; color: #90caf9; text-decoration: none; white-space: nowrap;
+      padding: 7px 14px; border: 1px solid rgba(144,202,249,0.3);
+      border-radius: 6px; transition: background 0.2s;
+    }
+    header a:hover { background: rgba(144,202,249,0.1); }
+
+    .container { max-width: 1020px; margin: 0 auto; padding: 0 28px; }
+    .page-body  { padding: 52px 0; }
+
+    .section-tag {
+      display: inline-block; font-size: 11px; font-weight: 700;
+      letter-spacing: 1.2px; text-transform: uppercase;
+      color: var(--blue); background: #e3eef9;
+      padding: 4px 12px; border-radius: 20px; margin-bottom: 14px;
+    }
+    h2 { font-size: 1.9rem; font-weight: 700; color: var(--navy); line-height: 1.25; margin-bottom: 10px; }
+    h3 { font-size: 1.15rem; font-weight: 600; color: var(--navy); margin-bottom: 8px; }
+    .lead { font-size: 1.05rem; color: var(--muted); max-width: 680px; margin-bottom: 36px; line-height: 1.65; }
+    .chart-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 12px; }
+    .chart-note { font-size: 12px; color: var(--muted); }
+
+    /* Concept cards */
+    .kde-cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; margin-bottom: 48px; }
+    .kde-card  { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+    .kde-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+    .kde-card h3 { font-size: 1rem; margin-bottom: 8px; }
+    .kde-card p  { font-size: 14px; color: var(--muted); line-height: 1.65; }
+
+    .kde-sub { font-size: 1.2rem; color: var(--navy); font-weight: 600; margin-bottom: 6px; margin-top: 40px; }
+
+    /* Mode toggle */
+    .kde-toggle-row { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+    .kde-toggle {
+      padding: 9px 22px; border-radius: 8px; border: 2px solid var(--border);
+      background: transparent; font-size: 14px; font-weight: 500; cursor: pointer;
+      color: var(--muted); transition: all 0.2s; font-family: inherit;
+    }
+    .kde-toggle.active { background: var(--navy); border-color: var(--navy); color: #fff; }
+    .kde-toggle:hover:not(.active) { border-color: var(--navy); color: var(--navy); }
+
+    /* Buffer slider */
+    .kde-buffer-row {
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 20px; margin-bottom: 14px;
+    }
+    .kde-buffer-label { font-size: 13px; color: var(--muted); font-weight: 500; white-space: nowrap; }
+    .kde-buffer-slider {
+      flex: 1; min-width: 120px; max-width: 300px; cursor: pointer;
+      -webkit-appearance: none; appearance: none;
+      height: 6px; border-radius: 3px; outline: none; background: var(--border);
+    }
+    .kde-buffer-slider::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: var(--border); }
+    .kde-buffer-slider::-moz-range-track          { height: 6px; border-radius: 3px; background: var(--border); }
+    input.kde-buffer-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%;
+      background: var(--blue); cursor: pointer; margin-top: -7px;
+      transition: transform 0.15s; box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+    }
+    input.kde-buffer-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+    .kde-buffer-slider::-moz-range-thumb {
+      width: 20px; height: 20px; border-radius: 50%; border: none;
+      background: var(--blue); cursor: pointer;
+    }
+    .kde-buffer-val  { font-size: 1.2rem; font-weight: 700; color: var(--blue); min-width: 56px; }
+    .kde-buffer-note { font-size: 12px; color: var(--muted); }
+    .kde-buffer-note.paper-val { color: #388e3c; font-weight: 500; }
+
+    /* Diagram toolbar */
+    .kde-toolbar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 8px; gap: 12px; flex-wrap: wrap;
+    }
+    .kde-hint { font-size: 12px; color: var(--muted); }
+    .kde-hint kbd {
+      font-family: inherit; background: var(--border); border-radius: 4px;
+      padding: 1px 5px; font-size: 11px; color: var(--text);
+    }
+    .kde-reset-btn {
+      font-size: 12px; padding: 5px 14px; border-radius: 6px;
+      border: 1px solid var(--border); background: transparent;
+      color: var(--muted); cursor: pointer; font-family: inherit;
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .kde-reset-btn:hover { border-color: var(--navy); color: var(--navy); }
+
+    /* Diagram + panel */
+    .kde-viz-grid { display: grid; grid-template-columns: 1fr 300px; gap: 28px; align-items: start; margin-bottom: 40px; }
+    .kde-diagram-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; overflow: hidden; }
+    .kde-diagram-wrap svg { width: 100%; height: auto; display: block; transition: opacity 0.22s ease; user-select: none; }
+    .kde-panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; }
+    .kde-panel h4 { font-size: 1rem; color: var(--navy); margin-bottom: 10px; }
+    .kde-score-big { font-size: 2.8rem; font-weight: 700; color: var(--blue); line-height: 1; margin: 6px 0 4px; }
+    .kde-score-label { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+    .kde-shop-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .kde-shop-row:last-child { border-bottom: none; }
+    .kde-shop-dist { color: var(--muted); font-size: 12px; margin-left: 4px; }
+    .kde-contrib { font-weight: 700; min-width: 44px; text-align: right; }
+    .kde-contrib.hi  { color: #1565c0; }
+    .kde-contrib.med { color: #00796b; }
+    .kde-contrib.lo  { color: #9e9e9e; }
+    .kde-contrib.out { color: #ccc; }
+    .kde-callout { background: #e3eef9; border-left: 3px solid var(--blue); padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 13px; margin-top: 14px; color: var(--text); line-height: 1.55; }
+    .kde-panel-note { font-size: 11px; color: #aab; margin-top: 12px; line-height: 1.5; }
+
+    @media (max-width: 720px) {
+      .kde-cards { grid-template-columns: 1fr; }
+      .kde-viz-grid { grid-template-columns: 1fr; }
+      h2 { font-size: 1.5rem; }
+      header h1 { font-size: 1.3rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <div>
+      <h1>Kernel Density Estimation<br>for Tobacco Outlet Exposure</h1>
+      <p>Clemens et al. 2020 · Tobacco Control · doi:10.1136/tobaccocontrol-2018-054422</p>
+    </div>
+    <a href="index.html">← Full paper visualisation</a>
+  </div>
+</header>
+
+<div class="page-body">
+  <div class="container">
+
+    <div class="section-tag">Measuring exposure</div>
+    <h2>What Is Tobacco Outlet Density?</h2>
+    <p class="lead">The paper uses <strong>kernel density estimation</strong> (KDE) to assign each home address a tobacco exposure score. This often puzzles audiences. Here is a plain-English explanation of what it is, why we used it, and what it means in the real world.</p>
+
+    <div class="kde-cards">
+      <div class="kde-card">
+        <div class="kde-card-icon">📍</div>
+        <h3>What it measures</h3>
+        <p>A single number summarising how many tobacco shops are near each home, with closer shops weighted more heavily than distant ones. Every home in Scotland gets its own score based on its unique local retail landscape.</p>
+      </div>
+      <div class="kde-card">
+        <div class="kde-card-icon">⚖️</div>
+        <h3>Why not just count shops?</h3>
+        <p>A simple count treats a shop 10m from your door identically to one 790m away. KDE captures that proximity matters — a shop right outside your door is a daily cue; one at the far edge of an 800m boundary barely registers.</p>
+      </div>
+      <div class="kde-card">
+        <div class="kde-card-icon">🔥</div>
+        <h3>The heat-source analogy</h3>
+        <p>Think of each tobacco shop as a heat source. Your home's exposure score is the combined warmth you feel — shops right next door heat the space intensely; shops far away barely raise the temperature. KDE formalises this intuition.</p>
+      </div>
+    </div>
+
+    <h3 class="kde-sub">Simple Count vs Kernel Density: interactive example</h3>
+    <p style="color:var(--muted); font-size:14px; margin-bottom:18px;">Drag shops to reposition them, click empty space to add a shop, or use × to remove one. Toggle between methods and adjust the buffer size to see how each choice affects the exposure score.</p>
+
+    <div class="kde-toggle-row">
+      <button id="kde-btn-count" class="kde-toggle active" onclick="setKDEMode('count')">Simple buffer count</button>
+      <button id="kde-btn-kde"   class="kde-toggle"        onclick="setKDEMode('kde')">Kernel density</button>
+    </div>
+
+    <div class="kde-buffer-row">
+      <span class="kde-buffer-label">Buffer size:</span>
+      <input type="range" class="kde-buffer-slider" id="kde-buffer-slider"
+             min="300" max="1200" step="50" value="800"
+             oninput="updateKDEBuffer(+this.value)">
+      <span class="kde-buffer-val" id="kde-buffer-val">800m</span>
+      <span class="kde-buffer-note paper-val" id="kde-buffer-note">← as used in the paper</span>
+    </div>
+
+    <div class="kde-toolbar">
+      <span class="kde-hint">
+        <kbd>drag</kbd> to move &nbsp;·&nbsp;
+        <kbd>click</kbd> empty space to add &nbsp;·&nbsp;
+        <kbd>×</kbd> to remove
+      </span>
+      <button class="kde-reset-btn" onclick="resetShops()">Reset shops</button>
+    </div>
+
+    <div class="kde-viz-grid">
+      <div class="kde-diagram-wrap">
+        <svg id="kde-diagram" viewBox="0 0 580 340" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+      <div id="kde-panel" class="kde-panel"></div>
+    </div>
+
+    <h3 class="kde-sub">How Distance Shapes the Score</h3>
+    <p style="color:var(--muted); font-size:14px; margin-bottom:16px;">The quartic kernel function used in the paper. Move shops in the diagram above — the dots below update to show each shop's position on the decay curve. Beyond the buffer boundary shops contribute nothing.</p>
+    <div class="chart-wrap">
+      <div id="kernel-chart"></div>
+    </div>
+    <p class="chart-note" style="margin-top:8px;">Lettered dots show each shop. Inside-buffer shops sit on the curve; outside-buffer shops fall to the axis. Drag shops closer to the home to see their contribution increase.</p>
+
+  </div>
+</div>
+
+<script>
+/* ── Constants & mutable state ─────────────────────────────────────── */
+const KDE_HOME = { x: 280, y: 185 };
+let   KDE_BW_PX    = 155;
+let   KDE_BUFFER_M = 800;
+const KDE_M_PX     = 800 / 155;   // metres per SVG pixel (fixed scale)
+
+const SHOP_COLORS = [
+  '#1565c0','#00796b','#e65100','#6a1b9a',
+  '#c62828','#2e7d32','#0277bd','#4a148c',
+  '#558b2f','#ad1457','#00838f','#f9a825',
+];
+
+const KDE_SHOPS_DEFAULT = [
+  { id: 'A', x: 312, y: 148 },
+  { id: 'B', x: 375, y: 192 },
+  { id: 'C', x: 200, y: 245 },
+  { id: 'D', x: 290, y: 295 },
+  { id: 'E', x: 160, y: 135 },
+  { id: 'F', x: 450, y: 210 },
+];
+
+let kdeShops     = KDE_SHOPS_DEFAULT.map(s => ({ ...s }));
+let nextShopCode = 71;   // ASCII for 'G'
+let kdeMode      = 'count';
+
+/* ── Kernel maths ──────────────────────────────────────────────────── */
+function kdeKernel(distPx) {
+  if (distPx >= KDE_BW_PX) return 0;
+  const t = distPx / KDE_BW_PX;
+  return Math.pow(1 - t * t, 2);
+}
+
+function kdeShopDist(s) {
+  return Math.hypot(s.x - KDE_HOME.x, s.y - KDE_HOME.y);
+}
+
+function kdeEnrich(shops) {
+  return shops.map(s => {
+    const d = kdeShopDist(s);
+    return { ...s, distPx: d,
+             distM:  Math.round(d * KDE_M_PX / 10) * 10,
+             k:      kdeKernel(d),
+             inside: d < KDE_BW_PX };
+  });
+}
+
+function fmtK(k) {
+  if (k <= 0)    return '—';
+  if (k < 0.005) return '+<0.01';
+  return '+' + k.toFixed(2);
+}
+
+/* ── Shop management ───────────────────────────────────────────────── */
+function resetShops() {
+  kdeShops     = KDE_SHOPS_DEFAULT.map(s => ({ ...s }));
+  nextShopCode = 71;
+  redrawAll();
+}
+
+function nextShopId() {
+  if (nextShopCode <= 90) return String.fromCharCode(nextShopCode++);
+  return String(nextShopCode++ - 64);
+}
+
+function shopColor(idx) {
+  return SHOP_COLORS[idx % SHOP_COLORS.length];
+}
+
+/* ── Coordinate helper ─────────────────────────────────────────────── */
+function svgCoords(svg, clientX, clientY) {
+  const pt = svg.createSVGPoint();
+  pt.x = clientX;
+  pt.y = clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+
+/* ── Redraw helpers ────────────────────────────────────────────────── */
+function redrawDiagramAndPanel() {
+  drawKDEDiagram(kdeMode);
+  updateKDEPanel(kdeMode);
+}
+
+function redrawAll() {
+  drawKDEDiagram(kdeMode);
+  updateKDEPanel(kdeMode);
+  d3.select('#kernel-chart').html('');
+  drawKernelDecayChart();
+}
+
+/* ── Controls ──────────────────────────────────────────────────────── */
+function updateKDEBuffer(m) {
+  KDE_BUFFER_M = m;
+  KDE_BW_PX    = m * 155 / 800;
+  document.getElementById('kde-buffer-val').textContent = m + 'm';
+  const note = document.getElementById('kde-buffer-note');
+  note.textContent = m === 800 ? '← as used in the paper' : '(paper used 800m)';
+  note.className   = 'kde-buffer-note' + (m === 800 ? ' paper-val' : '');
+  redrawAll();
+}
+
+function setKDEMode(mode) {
+  kdeMode = mode;
+  document.getElementById('kde-btn-count').classList.toggle('active', mode === 'count');
+  document.getElementById('kde-btn-kde').classList.toggle('active', mode === 'kde');
+  const diag = document.getElementById('kde-diagram');
+  diag.style.opacity = '0';
+  setTimeout(() => { drawKDEDiagram(mode); diag.style.opacity = '1'; }, 180);
+  updateKDEPanel(mode);
+}
+
+/* ── Drag state ────────────────────────────────────────────────────── */
+let drag = null;       // { idx, ox, oy }
+let wasDragging = false;
+
+/* ── Draw diagram ──────────────────────────────────────────────────── */
+function drawKDEDiagram(mode) {
+  const ns  = 'http://www.w3.org/2000/svg';
+  const svg = document.getElementById('kde-diagram');
+  svg.innerHTML = '';
+  const shops = kdeEnrich(kdeShops);
+
+  function el(tag, attrs, parent) {
+    const e = document.createElementNS(ns, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function txt(str, attrs, parent) {
+    const e = el('text', attrs, parent);
+    e.textContent = str;
+    return e;
+  }
+
+  /* Defs */
+  const defs = el('defs', {}, svg);
+  const cp   = el('clipPath', { id: 'kdec' }, defs);
+  el('rect', { x: 0, y: 0, width: 580, height: 340 }, cp);
+
+  if (mode === 'kde') {
+    shops.filter(s => s.inside).forEach((s, i) => {
+      const gr = el('radialGradient', { id: `kgr${i}`, cx: '50%', cy: '50%', r: '50%' }, defs);
+      el('stop', { offset: '0%',   'stop-color': shopColor(kdeShops.indexOf(kdeShops.find(o => o.id === s.id))), 'stop-opacity': (s.k * 0.5).toFixed(3) }, gr);
+      el('stop', { offset: '100%', 'stop-color': shopColor(kdeShops.indexOf(kdeShops.find(o => o.id === s.id))), 'stop-opacity': '0' }, gr);
+    });
+  }
+
+  const g = el('g', { 'clip-path': 'url(#kdec)' }, svg);
+
+  /* Transparent click target for "add shop" */
+  el('rect', { x: 0, y: 0, width: 580, height: 340, fill: 'transparent', 'data-bg': '1' }, g);
+
+  /* Grid */
+  for (let x = 0; x <= 580; x += 40)
+    el('line', { x1: x, y1: 0, x2: x, y2: 340, stroke: '#edf0f5', 'stroke-width': 1, 'pointer-events': 'none' }, g);
+  for (let y = 0; y <= 340; y += 40)
+    el('line', { x1: 0, y1: y, x2: 580, y2: y, stroke: '#edf0f5', 'stroke-width': 1, 'pointer-events': 'none' }, g);
+
+  /* KDE heat gradients */
+  if (mode === 'kde') {
+    shops.filter(s => s.inside).forEach((s, i) => {
+      el('circle', { cx: s.x, cy: s.y, r: KDE_BW_PX,
+        fill: `url(#kgr${i})`, 'pointer-events': 'none' }, g);
+    });
+  }
+
+  /* Buffer circle (count mode) */
+  if (mode === 'count') {
+    el('circle', { cx: KDE_HOME.x, cy: KDE_HOME.y, r: KDE_BW_PX,
+      fill: 'rgba(21,101,192,0.05)', stroke: '#1565c0',
+      'stroke-width': 2, 'stroke-dasharray': '8,5', 'pointer-events': 'none' }, g);
+    const bufLblX = Math.min(574, KDE_HOME.x + KDE_BW_PX - 8);
+    const bufLblY = Math.max(14, KDE_HOME.y - KDE_BW_PX + 14);
+    txt(`${KDE_BUFFER_M}m buffer`, { x: bufLblX, y: bufLblY,
+      fill: '#1565c0', 'font-size': 11, 'font-family': 'Inter,sans-serif',
+      'text-anchor': 'end', 'font-weight': 600, 'pointer-events': 'none' }, g);
+  }
+
+  /* Shops */
+  shops.forEach((s, idx) => {
+    const col   = shopColor(idx);
+    const faded = !s.inside;
+    const fill  = faded ? '#bdbdbd' : col;
+    const strk  = faded ? '#9e9e9e' : col;
+
+    /* Draggable shop group */
+    const sg = el('g', { 'data-shop-idx': String(idx), style: 'cursor:grab' }, g);
+
+    /* Icon */
+    el('rect', { x: s.x-10, y: s.y-10, width: 20, height: 20, rx: 4,
+                 fill, stroke: strk, 'stroke-width': 1.5 }, sg);
+
+    /* Labels (non-interactive) */
+    txt(`Shop ${s.id}`, { x: s.x, y: s.y+25, 'text-anchor': 'middle',
+      'font-size': 11, 'font-family': 'Inter,sans-serif',
+      fill: faded ? '#bdbdbd' : '#333', 'font-weight': 600,
+      'pointer-events': 'none' }, sg);
+    txt(`${s.distM}m`, { x: s.x, y: s.y+37, 'text-anchor': 'middle',
+      'font-size': 10, 'font-family': 'Inter,sans-serif',
+      fill: faded ? '#d0d0d0' : '#666', 'pointer-events': 'none' }, sg);
+
+    if (!s.inside)
+      txt(`outside ${KDE_BUFFER_M}m`, { x: s.x, y: s.y-16, 'text-anchor': 'middle',
+        'font-size': 10, 'font-family': 'Inter,sans-serif',
+        fill: '#bdbdbd', 'pointer-events': 'none' }, sg);
+
+    /* KDE contribution badge */
+    if (mode === 'kde' && s.inside) {
+      const kLabel = s.k < 0.005 ? '<0.01' : s.k.toFixed(2);
+      const bx = s.x + 11, by = s.y - 23;
+      el('rect', { x: bx, y: by, width: 40, height: 16, rx: 4, fill: col,
+                   'pointer-events': 'none' }, sg);
+      txt(`+${kLabel}`, { x: bx+20, y: by+11, 'text-anchor': 'middle',
+        'font-size': 10, 'font-family': 'Inter,sans-serif',
+        fill: 'white', 'font-weight': 700, 'pointer-events': 'none' }, sg);
+    }
+
+    /* Delete button (×) — always visible, separate data attr so drag doesn't trigger it */
+    const dg = el('g', { 'data-delete-idx': String(idx), style: 'cursor:pointer' }, sg);
+    el('circle', { cx: s.x+9, cy: s.y-9, r: 7,
+                   fill: '#ef5350', stroke: 'white', 'stroke-width': 1.5 }, dg);
+    txt('×', { x: s.x+9, y: s.y-5, 'text-anchor': 'middle',
+      'font-size': 11, 'font-family': 'Inter,sans-serif',
+      fill: 'white', 'font-weight': 700, 'pointer-events': 'none' }, dg);
+  });
+
+  /* Home icon */
+  const hg = el('g', { transform: `translate(${KDE_HOME.x},${KDE_HOME.y})`, 'data-home': '1' }, g);
+  el('polygon', { points: '-16,-14 0,-30 16,-14', fill: '#0d2137', stroke: 'white', 'stroke-width': 2 }, hg);
+  el('rect', { x: -13, y: -14, width: 26, height: 24, fill: '#0d2137', stroke: 'white', 'stroke-width': 2 }, hg);
+  el('rect', { x: -6, y: -1, width: 12, height: 11, rx: 2, fill: 'white', opacity: 0.85 }, hg);
+  txt('Home', { x: 0, y: 28, 'text-anchor': 'middle',
+    'font-size': 12, 'font-family': 'Inter,sans-serif',
+    fill: '#0d2137', 'font-weight': 700, 'pointer-events': 'none' }, hg);
+}
+
+/* ── Update panel ──────────────────────────────────────────────────── */
+function updateKDEPanel(mode) {
+  const shops    = kdeEnrich(kdeShops);
+  const inside   = shops.filter(s => s.inside);
+  const kdeTotal = inside.reduce((sum, s) => sum + s.k, 0);
+  const container = document.getElementById('kde-panel');
+
+  const rows = shops.map((s, idx) => {
+    const col = shopColor(idx);
+    let cls, val;
+    if (mode === 'count') {
+      cls = s.inside ? 'hi' : 'out';
+      val = s.inside ? '+1' : '—';
+    } else {
+      val = fmtK(s.k);
+      cls = !s.inside ? 'out' : s.k >= 0.7 ? 'hi' : s.k >= 0.25 ? 'med' : 'lo';
+    }
+    const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${s.inside ? col : '#ccc'};margin-right:5px;flex-shrink:0;"></span>`;
+    return `<div class="kde-shop-row">
+      <span style="display:flex;align-items:center">${dot}<strong>Shop ${s.id}</strong><span class="kde-shop-dist"> ${s.distM}m</span></span>
+      <span class="kde-contrib ${cls}">${val}</span>
+    </div>`;
+  }).join('');
+
+  let callout;
+  if (mode === 'count') {
+    if (inside.length === 0) {
+      callout = `No shops within the ${KDE_BUFFER_M}m buffer. Try increasing the buffer size or dragging a shop closer.`;
+    } else if (inside.length === 1) {
+      callout = `Only Shop ${inside[0].id} (${inside[0].distM}m) is within the ${KDE_BUFFER_M}m buffer — it scores <strong>+1</strong>.`;
+    } else {
+      const nearest  = inside.reduce((a, b) => a.distM < b.distM ? a : b);
+      const furthest = inside.reduce((a, b) => a.distM > b.distM ? a : b);
+      const gap      = furthest.distM - nearest.distM;
+      callout = `Shop ${nearest.id} (${nearest.distM}m) scores <strong>+1</strong> — identical to Shop ${furthest.id} (${furthest.distM}m), despite being ${gap}m closer. Simple counting cannot distinguish the two.`;
+    }
+  } else {
+    if (inside.length === 0) {
+      callout = `No shops within ${KDE_BUFFER_M}m — density score is 0. Try increasing the buffer size or dragging a shop closer.`;
+    } else if (inside.length === 1) {
+      const s = inside[0];
+      const kD = s.k < 0.005 ? '<0.01' : s.k.toFixed(2);
+      callout = `Only Shop ${s.id} (${s.distM}m) is within the buffer, contributing <strong>${kD}</strong>. Drag it closer to see the weight increase.`;
+    } else {
+      const hi    = inside.reduce((a, b) => a.k > b.k ? a : b);
+      const lo    = inside.reduce((a, b) => a.k < b.k ? a : b);
+      const hiD   = hi.k.toFixed(2);
+      const loD   = lo.k < 0.005 ? '<0.01' : lo.k.toFixed(2);
+      const ratio = lo.k < 0.005 ? '100+' : (hi.k / lo.k).toFixed(0) + '×';
+      callout = `Shop ${hi.id} (${hi.distM}m) contributes <strong>${hiD}</strong>. Shop ${lo.id} (${lo.distM}m) contributes only <strong>${loD}</strong> — a ${ratio} difference reflecting real proximity.`;
+    }
+  }
+
+  const scoreContent = mode === 'count'
+    ? `<h4>Simple Buffer Count</h4>
+       <div class="kde-score-big">${inside.length}</div>
+       <div class="kde-score-label">shops within ${KDE_BUFFER_M}m</div>`
+    : `<h4>Kernel Density Score</h4>
+       <div class="kde-score-big">${kdeTotal.toFixed(2)}</div>
+       <div class="kde-score-label">weighted density units</div>`;
+
+  container.innerHTML = `
+    ${scoreContent}
+    ${rows}
+    <div class="kde-callout">${callout}</div>
+    <p class="kde-panel-note">Drag shops in the diagram to see scores update live.</p>`;
+}
+
+/* ── Kernel decay chart ────────────────────────────────────────────── */
+function drawKernelDecayChart() {
+  const container = document.getElementById('kernel-chart');
+  if (!container) return;
+  container.innerHTML = '';
+  const B  = KDE_BUFFER_M;
+  const W  = container.clientWidth || 600;
+  const H  = 220;
+  const M  = { top: 16, right: 30, bottom: 46, left: 52 };
+  const w  = W - M.left - M.right;
+  const h  = H - M.top - M.bottom;
+
+  const svg = d3.select('#kernel-chart').append('svg')
+    .attr('width', W).attr('height', H)
+    .attr('font-family', 'Inter, sans-serif');
+  const g = svg.append('g').attr('transform', `translate(${M.left},${M.top})`);
+
+  const xMax = Math.max(1300, B + 200);
+  const x = d3.scaleLinear().domain([0, xMax]).range([0, w]);
+  const y = d3.scaleLinear().domain([0, 1]).range([h, 0]);
+
+  const pts = d3.range(0, xMax + 1, 2).map(d => ({
+    d, k: d < B ? Math.pow(1 - Math.pow(d/B, 2), 2) : 0
+  }));
+
+  g.append('path').datum(pts)
+    .attr('d', d3.area().x(d => x(d.d)).y0(h).y1(d => y(d.k)).curve(d3.curveBasis))
+    .attr('fill', 'rgba(21,101,192,0.08)');
+  g.append('path').datum(pts)
+    .attr('d', d3.line().x(d => x(d.d)).y(d => y(d.k)).curve(d3.curveBasis))
+    .attr('fill', 'none').attr('stroke', '#1565c0').attr('stroke-width', 2.5);
+
+  const bxPos = x(B);
+  g.append('line')
+    .attr('x1', bxPos).attr('x2', bxPos).attr('y1', 0).attr('y2', h)
+    .attr('stroke', '#ef5350').attr('stroke-width', 1.5).attr('stroke-dasharray', '5,3');
+  const lAnchor = bxPos > w * 0.75 ? 'end' : 'start';
+  g.append('text')
+    .attr('x', bxPos + (lAnchor === 'end' ? -6 : 6)).attr('y', 13)
+    .attr('fill', '#ef5350').attr('font-size', 11).attr('text-anchor', lAnchor)
+    .text(`${B}m cutoff`);
+
+  const allShops  = kdeEnrich(kdeShops);
+  const lblOffset = {};
+  // Stagger labels when shops are close together on the x axis
+  allShops.forEach((s, i) => {
+    const xPos = x(s.distM);
+    const clash = allShops.slice(0, i).some((o, j) => Math.abs(x(o.distM) - xPos) < 22);
+    lblOffset[i] = clash ? 14 : -10;
+  });
+
+  allShops.forEach((s, i) => {
+    const col = s.inside ? shopColor(i) : '#ccc';
+    const kv  = s.inside ? s.k : 0;
+    const cy  = s.inside ? y(kv) : h;
+
+    if (s.inside) {
+      g.append('line')
+        .attr('x1', x(s.distM)).attr('x2', x(s.distM)).attr('y1', cy).attr('y2', h)
+        .attr('stroke', col).attr('stroke-width', 1).attr('stroke-dasharray', '3,2').attr('opacity', 0.4);
+    }
+    g.append('circle')
+      .attr('cx', x(s.distM)).attr('cy', cy).attr('r', s.inside ? 5 : 4)
+      .attr('fill', col).attr('stroke', '#fff').attr('stroke-width', 2)
+      .attr('opacity', s.inside ? 1 : 0.5);
+    const ldy = s.inside ? cy + lblOffset[i] : h + 14;
+    g.append('text')
+      .attr('x', x(s.distM)).attr('y', ldy)
+      .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', col).attr('font-weight', 600)
+      .text(s.id);
+  });
+
+  const tickStep = xMax <= 1000 ? 200 : 300;
+  g.append('g').attr('transform', `translate(0,${h})`)
+    .call(d3.axisBottom(x).tickValues(d3.range(0, xMax+1, tickStep)).tickFormat(d => d+'m'))
+    .selectAll('text').attr('fill', '#5c6a7a').attr('font-size', 11);
+  g.append('g')
+    .call(d3.axisLeft(y).ticks(5).tickFormat(d3.format('.1f')))
+    .selectAll('text').attr('fill', '#5c6a7a').attr('font-size', 11);
+  g.selectAll('.domain, .tick line').attr('stroke', '#dde3ec');
+
+  g.append('text').attr('x', w/2).attr('y', h+38)
+    .attr('text-anchor', 'middle').attr('fill', '#5c6a7a').attr('font-size', 12)
+    .text('Distance from home (metres)');
+  g.append('text').attr('transform', 'rotate(-90)').attr('x', -h/2).attr('y', -40)
+    .attr('text-anchor', 'middle').attr('fill', '#5c6a7a').attr('font-size', 12)
+    .text('Contribution weight');
+}
+
+/* ── SVG interaction ───────────────────────────────────────────────── */
+function initSVGEvents() {
+  const svg = document.getElementById('kde-diagram');
+
+  function startDrag(target, clientX, clientY) {
+    // Ignore delete button clicks
+    if (target.closest('[data-delete-idx]')) return;
+    const shopEl = target.closest('[data-shop-idx]');
+    if (!shopEl) return;
+    const idx = parseInt(shopEl.dataset.shopIdx);
+    const pt  = svgCoords(svg, clientX, clientY);
+    drag        = { idx, ox: kdeShops[idx].x - pt.x, oy: kdeShops[idx].y - pt.y };
+    wasDragging = false;
+    svg.style.cursor = 'grabbing';
+  }
+
+  function moveDrag(clientX, clientY) {
+    if (!drag) return;
+    const pt = svgCoords(svg, clientX, clientY);
+    const nx = Math.max(16, Math.min(564, Math.round(pt.x + drag.ox)));
+    const ny = Math.max(16, Math.min(324, Math.round(pt.y + drag.oy)));
+    if (nx !== kdeShops[drag.idx].x || ny !== kdeShops[drag.idx].y) {
+      wasDragging = true;
+      kdeShops[drag.idx].x = nx;
+      kdeShops[drag.idx].y = ny;
+      redrawDiagramAndPanel();  // fast: no D3 kernel chart during drag
+    }
+  }
+
+  function endDrag() {
+    if (!drag) return;
+    const didDrag = wasDragging;
+    drag = null;
+    wasDragging = false;
+    svg.style.cursor = '';
+    if (didDrag) {
+      // Now also update the kernel chart
+      d3.select('#kernel-chart').html('');
+      drawKernelDecayChart();
+    }
+  }
+
+  /* Mouse */
+  svg.addEventListener('mousedown', e => {
+    startDrag(e.target, e.clientX, e.clientY);
+    if (drag) e.preventDefault();
+  });
+  window.addEventListener('mousemove', e => moveDrag(e.clientX, e.clientY));
+  window.addEventListener('mouseup',   endDrag);
+
+  /* Touch */
+  svg.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    startDrag(e.target, e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+  window.addEventListener('touchmove', e => {
+    if (!drag || e.touches.length !== 1) return;
+    moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+    e.preventDefault();
+  }, { passive: false });
+  window.addEventListener('touchend', endDrag);
+
+  /* Click: delete or add */
+  svg.addEventListener('click', e => {
+    const consumed = wasDragging;
+    wasDragging = false;
+    if (consumed) return;
+
+    // Delete button
+    const deleteEl = e.target.closest('[data-delete-idx]');
+    if (deleteEl) {
+      const idx = parseInt(deleteEl.dataset.deleteIdx);
+      kdeShops.splice(idx, 1);
+      redrawAll();
+      return;
+    }
+
+    // Add shop: click on background or grid (not shop, not home)
+    if (!e.target.closest('[data-shop-idx]') && !e.target.closest('[data-home]')) {
+      const pt = svgCoords(svg, e.clientX, e.clientY);
+      // Ignore clicks on the very edge
+      if (pt.x < 10 || pt.x > 570 || pt.y < 10 || pt.y > 330) return;
+      kdeShops.push({ id: nextShopId(), x: Math.round(pt.x), y: Math.round(pt.y) });
+      redrawAll();
+    }
+  });
+}
+
+/* ── Init ──────────────────────────────────────────────────────────── */
+function init() {
+  setKDEMode('count');
+  drawKernelDecayChart();
+  initSVGEvents();
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      drawKDEDiagram(kdeMode);
+      d3.select('#kernel-chart').html('');
+      drawKernelDecayChart();
+    }, 150);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

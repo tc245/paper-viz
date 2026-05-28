@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tobacco Retail Density & Maternal Smoking — Clemens et al. 2020</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:   #0d2137;
+      --blue:   #1565c0;
+      --teal:   #00796b;
+      --amber:  #f59e0b;
+      --red:    #c62828;
+      --green:  #388e3c;
+      --bg:     #f0f4f9;
+      --card:   #ffffff;
+      --text:   #1a2332;
+      --muted:  #5c6a7a;
+      --border: #dde3ec;
+      --radius: 14px;
+      --shadow: 0 4px 24px rgba(13,33,55,0.10);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      font-size: 16px;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(13,33,55,0.97);
+      backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px; height: 54px;
+    }
+    .nav-brand { color: #fff; font-size: 14px; font-weight: 600; opacity: 0.9; }
+    .nav-links { display: flex; gap: 6px; }
+    .nav-links a {
+      color: rgba(255,255,255,0.7); font-size: 13px; font-weight: 500;
+      text-decoration: none; padding: 6px 12px; border-radius: 6px;
+      transition: all 0.2s;
+    }
+    .nav-links a:hover { color: #fff; background: rgba(255,255,255,0.1); }
+
+    /* ── Containers ── */
+    .container { max-width: 1060px; margin: 0 auto; padding: 0 28px; }
+    section { padding: 80px 0; }
+    section:nth-child(even) { background: var(--card); }
+
+    .section-tag {
+      display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; color: var(--blue); background: #e3eef9;
+      padding: 4px 12px; border-radius: 20px; margin-bottom: 14px;
+    }
+    h2 { font-size: 2rem; font-weight: 700; color: var(--navy); line-height: 1.25; margin-bottom: 10px; }
+    h3 { font-size: 1.15rem; font-weight: 600; color: var(--navy); margin-bottom: 8px; }
+    .lead { font-size: 1.1rem; color: var(--muted); max-width: 640px; margin-bottom: 36px; }
+
+    /* ── Hero ── */
+    #hero {
+      background: linear-gradient(140deg, #0d2137 0%, #1a4a7a 55%, #0d5f7a 100%);
+      padding: 80px 0 72px;
+    }
+    .hero-journal {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px; padding: 5px 14px; margin-bottom: 28px;
+    }
+    .hero-journal span { font-size: 12px; color: rgba(255,255,255,0.75); font-weight: 500; }
+    .hero-journal .doi { color: #90caf9; }
+    #hero h1 {
+      font-size: 2.4rem; font-weight: 700; color: #fff; line-height: 1.2;
+      max-width: 720px; margin-bottom: 16px;
+    }
+    .hero-authors { color: rgba(255,255,255,0.65); font-size: 15px; margin-bottom: 44px; }
+    .hero-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 680px; }
+    .stat-card {
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: var(--radius); padding: 20px 22px;
+    }
+    .stat-card .stat-value { font-size: 2rem; font-weight: 700; color: #fff; line-height: 1; }
+    .stat-card .stat-ci { font-size: 12px; color: rgba(255,255,255,0.55); margin-top: 4px; }
+    .stat-card .stat-label { font-size: 13px; color: rgba(255,255,255,0.70); margin-top: 8px; }
+    .stat-card.highlight { background: rgba(245,158,11,0.18); border-color: rgba(245,158,11,0.4); }
+    .stat-card.highlight .stat-value { color: #fcd34d; }
+
+    /* ── Study Design ── */
+    .design-steps { display: flex; gap: 12px; margin-bottom: 36px; }
+    .step-btn {
+      padding: 8px 18px; border-radius: 20px; border: 2px solid var(--border);
+      background: transparent; font-size: 13px; font-weight: 500; cursor: pointer;
+      color: var(--muted); transition: all 0.2s; font-family: inherit;
+    }
+    .step-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .design-panel { display: none; animation: fadeIn 0.4s ease; }
+    .design-panel.active { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
+    .design-panel.single { grid-template-columns: 1fr; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .design-text h3 { font-size: 1.35rem; margin-bottom: 12px; }
+    .design-text p { color: var(--muted); margin-bottom: 12px; line-height: 1.7; }
+    .design-text .callout {
+      background: #e3eef9; border-left: 3px solid var(--blue);
+      padding: 12px 16px; border-radius: 0 8px 8px 0;
+      font-size: 14px; color: var(--text); margin-top: 16px;
+    }
+    .design-text .callout strong { color: var(--blue); }
+
+    .design-nav { display: flex; align-items: center; gap: 16px; margin-top: 24px; }
+    .design-nav button {
+      padding: 9px 20px; border-radius: 8px; border: 2px solid var(--border);
+      background: transparent; font-size: 14px; font-weight: 600;
+      cursor: pointer; font-family: inherit; color: var(--text); transition: all 0.2s;
+    }
+    .design-nav button:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); }
+    .design-nav button:disabled { opacity: 0.35; cursor: default; }
+    .design-nav button.primary { background: var(--blue); border-color: var(--blue); color: white; }
+    .design-nav button.primary:hover { background: #1976d2; }
+
+    /* ── Forest Plot ── */
+    .model-tabs { display: flex; gap: 8px; margin-bottom: 28px; flex-wrap: wrap; }
+    .tab-btn {
+      padding: 9px 18px; border-radius: 8px; border: 2px solid var(--border);
+      background: transparent; font-size: 13px; font-weight: 500; cursor: pointer;
+      color: var(--muted); transition: all 0.2s; font-family: inherit; line-height: 1.4;
+    }
+    .tab-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .tab-btn:hover:not(.active) { border-color: #90bce0; color: var(--text); }
+
+    .chart-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 12px; }
+    .chart-note { font-size: 12px; color: var(--muted); }
+    .chart-note span { background: #e8e8e8; display: inline-block; width: 16px; height: 3px; vertical-align: middle; border-radius: 2px; margin-right: 4px; }
+
+    #forest-svg text { font-family: 'Inter', sans-serif; }
+    #dose-svg text { font-family: 'Inter', sans-serif; }
+
+    /* ── Table 1 Explorer ── */
+    .explorer-tabs { display: flex; gap: 8px; margin-bottom: 28px; flex-wrap: wrap; }
+    .explorer-tab {
+      padding: 8px 16px; border-radius: 8px; border: 2px solid var(--border);
+      background: transparent; font-size: 13px; font-weight: 500; cursor: pointer;
+      color: var(--muted); transition: all 0.2s; font-family: inherit;
+    }
+    .explorer-tab.active { background: var(--teal); border-color: var(--teal); color: #fff; }
+    .explorer-tab:hover:not(.active) { border-color: #80b9b2; }
+
+    .explorer-panel { display: none; }
+    .explorer-panel.active { display: block; animation: fadeIn 0.3s ease; }
+
+    .bar-row { display: flex; align-items: center; gap: 14px; margin: 9px 0; }
+    .bar-label { width: 200px; min-width: 200px; font-size: 13px; color: var(--text); text-align: right; }
+    .bar-track { flex: 1; background: #eef1f5; border-radius: 5px; height: 30px; position: relative; }
+    .bar-fill {
+      height: 100%; border-radius: 5px; display: flex; align-items: center;
+      padding-left: 10px; font-size: 12px; font-weight: 600; color: white;
+      transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+      background: var(--blue);
+    }
+    .bar-n { font-size: 12px; color: var(--muted); min-width: 100px; }
+    .bar-ref-line {
+      position: absolute; top: 0; bottom: 0; width: 2px;
+      background: rgba(100,120,150,0.25); border-radius: 1px;
+    }
+
+    .explorer-header { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+    .explorer-header .overall { font-size: 13px; color: var(--muted); }
+    .explorer-header .overall strong { color: var(--navy); }
+
+    /* ── Policy Simulator ── */
+    #policy {
+      background: linear-gradient(140deg, #0d2137 0%, #1a4a6a 60%, #0d5a6a 100%);
+    }
+    #policy .section-tag { background: rgba(245,158,11,0.2); color: #fcd34d; }
+    #policy h2 { color: #fff; }
+    #policy .lead { color: rgba(255,255,255,0.65); }
+
+    .simulator-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+    .sim-card {
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: var(--radius); padding: 28px;
+    }
+    .sim-card label { display: block; font-size: 14px; color: rgba(255,255,255,0.7); margin-bottom: 14px; font-weight: 500; }
+
+    input[type=range] {
+      width: 100%; -webkit-appearance: none; height: 6px;
+      border-radius: 3px; background: rgba(255,255,255,0.2); outline: none; cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+      background: var(--amber); cursor: pointer; transition: transform 0.15s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+
+    .slider-val {
+      font-size: 2.5rem; font-weight: 700; color: #fcd34d;
+      text-align: center; margin: 18px 0 4px;
+    }
+    .slider-sublabel { font-size: 13px; color: rgba(255,255,255,0.55); text-align: center; }
+
+    .impact-display { margin-top: 20px; }
+    .impact-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .impact-row:last-child { border-bottom: none; }
+    .impact-row .key { font-size: 13px; color: rgba(255,255,255,0.6); }
+    .impact-row .val { font-size: 1.5rem; font-weight: 700; color: #fff; }
+    .impact-row .val.green { color: #69f0ae; }
+
+    .sim-bar-track { background: rgba(255,255,255,0.1); border-radius: 4px; height: 10px; margin-top: 14px; }
+    .sim-bar-fill { height: 100%; border-radius: 4px; background: var(--amber); transition: width 0.5s ease; }
+
+    .sim-disclaimer { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 28px; line-height: 1.5; }
+
+    /* ── Footer ── */
+    footer { background: var(--navy); padding: 48px 0; }
+    footer .container { display: flex; gap: 40px; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; }
+    .footer-cite { flex: 1; min-width: 280px; }
+    .footer-cite h4 { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+    .footer-cite p { font-size: 14px; color: rgba(255,255,255,0.75); line-height: 1.7; }
+    .footer-cite a { color: #90caf9; text-decoration: none; }
+    .footer-cite a:hover { text-decoration: underline; }
+    .footer-meta { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 16px; }
+
+    /* ── KDE Section ── */
+    .kde-cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; margin-bottom: 48px; }
+    .kde-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+    .kde-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+    .kde-card h3 { font-size: 1rem; margin-bottom: 8px; }
+    .kde-card p { font-size: 14px; color: var(--muted); line-height: 1.65; }
+
+    .kde-sub { font-size: 1.2rem; color: var(--navy); font-weight: 600; margin-bottom: 6px; margin-top: 40px; }
+
+    .kde-toggle-row { display: flex; gap: 10px; margin-bottom: 22px; }
+    .kde-toggle {
+      padding: 9px 22px; border-radius: 8px; border: 2px solid var(--border);
+      background: transparent; font-size: 14px; font-weight: 500; cursor: pointer;
+      color: var(--muted); transition: all 0.2s; font-family: inherit;
+    }
+    .kde-toggle.active { background: var(--navy); border-color: var(--navy); color: #fff; }
+    .kde-toggle:hover:not(.active) { border-color: var(--navy); color: var(--navy); }
+
+    .kde-viz-grid { display: grid; grid-template-columns: 1fr 300px; gap: 28px; align-items: start; margin-bottom: 40px; }
+    .kde-diagram-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; overflow: hidden; }
+    .kde-diagram-wrap svg { width: 100%; height: auto; display: block; transition: opacity 0.22s ease; }
+    .kde-panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; }
+    .kde-panel h4 { font-size: 1rem; color: var(--navy); margin-bottom: 10px; }
+    .kde-score-big { font-size: 2.8rem; font-weight: 700; color: var(--blue); line-height: 1; margin: 6px 0 4px; }
+    .kde-score-label { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+    .kde-shop-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .kde-shop-row:last-child { border-bottom: none; }
+    .kde-shop-dist { color: var(--muted); font-size: 12px; margin-left: 4px; }
+    .kde-contrib { font-weight: 700; min-width: 44px; text-align: right; }
+    .kde-contrib.hi  { color: #1565c0; }
+    .kde-contrib.med { color: #00796b; }
+    .kde-contrib.lo  { color: #9e9e9e; }
+    .kde-contrib.out { color: #ccc; }
+    .kde-callout { background: #e3eef9; border-left: 3px solid var(--blue); padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 13px; margin-top: 14px; color: var(--text); line-height: 1.55; }
+
+    .kde-buffer-row {
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 20px; margin-bottom: 22px;
+    }
+    .kde-buffer-label { font-size: 13px; color: var(--muted); font-weight: 500; white-space: nowrap; }
+    .kde-buffer-slider {
+      flex: 1; min-width: 120px; max-width: 300px; cursor: pointer;
+      -webkit-appearance: none; appearance: none;
+      height: 6px; border-radius: 3px; outline: none;
+      background: var(--border);
+    }
+    .kde-buffer-slider::-webkit-slider-runnable-track {
+      height: 6px; border-radius: 3px; background: var(--border);
+    }
+    .kde-buffer-slider::-moz-range-track {
+      height: 6px; border-radius: 3px; background: var(--border);
+    }
+    input.kde-buffer-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%;
+      background: var(--blue); cursor: pointer; margin-top: -7px;
+      transition: transform 0.15s; box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+    }
+    input.kde-buffer-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+    .kde-buffer-slider::-moz-range-thumb {
+      width: 20px; height: 20px; border-radius: 50%; border: none;
+      background: var(--blue); cursor: pointer;
+    }
+    .kde-buffer-val { font-size: 1.2rem; font-weight: 700; color: var(--blue); min-width: 56px; }
+    .kde-buffer-note { font-size: 12px; color: var(--muted); }
+    .kde-buffer-note.paper-val { color: #388e3c; font-weight: 500; }
+
+    /* ── Responsive ── */
+    @media (max-width: 760px) {
+      #hero h1 { font-size: 1.8rem; }
+      .hero-stats { grid-template-columns: 1fr 1fr; }
+      .hero-stats .stat-card:last-child { grid-column: span 2; }
+      .design-panel.active { grid-template-columns: 1fr; }
+      .simulator-grid { grid-template-columns: 1fr; }
+      nav { padding: 0 16px; }
+      .nav-links { gap: 2px; }
+      .nav-links a { font-size: 12px; padding: 5px 8px; }
+      .bar-label { width: 130px; min-width: 130px; }
+      h2 { font-size: 1.6rem; }
+      .kde-cards { grid-template-columns: 1fr; }
+      .kde-viz-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── SVG Design Illustrations ── */
+    .design-svg { width: 100%; max-width: 420px; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════ NAV ══════════ -->
+<nav>
+  <span class="nav-brand">Clemens et al. 2020 · Tobacco Control</span>
+  <div class="nav-links">
+    <a href="#design">Study Design</a>
+    <a href="#kde">Measuring Density</a>
+    <a href="#results">Results</a>
+    <a href="#explorer">Data Explorer</a>
+    <a href="#policy">Policy Impact</a>
+  </div>
+</nav>
+
+<!-- ══════════ HERO ══════════ -->
+<section id="hero">
+  <div class="container">
+    <div class="hero-journal">
+      <span>Tobacco Control 2020; 29:7–14</span>
+      <span class="doi">· doi:10.1136/tobaccocontrol-2018-054422</span>
+    </div>
+    <h1>Neighbourhood Tobacco Supply and Individual Maternal Smoking During Pregnancy</h1>
+    <p class="hero-authors">Tom Clemens · Chris Dibben · Jamie Pearce · Niamh K Shortt<br>
+    <small>University of Edinburgh, School of Geosciences</small></p>
+    <div class="hero-stats">
+      <div class="stat-card highlight">
+        <div class="stat-value">1.67×</div>
+        <div class="stat-ci">95% CI: 1.27 – 2.20</div>
+        <div class="stat-label">Odds of smoking in the highest vs zero tobacco density areas</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">841,252</div>
+        <div class="stat-ci">Scotland 2000–2015</div>
+        <div class="stat-label">Birth records linked to tobacco retailer maps</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">22,927</div>
+        <div class="stat-ci">their own controls</div>
+        <div class="stat-label">Mothers compared across multiple pregnancies</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ STUDY DESIGN ══════════ -->
+<section id="design">
+  <div class="container">
+    <div class="section-tag">How the study works</div>
+    <h2>A Stronger Kind of Evidence</h2>
+    <p class="lead">Most studies compare different people in different places. This one compares the same person at different times — a far more robust approach.</p>
+
+    <div class="design-steps">
+      <button class="step-btn active" onclick="showSlide(0)">1 · The Data</button>
+      <button class="step-btn" onclick="showSlide(1)">2 · The Problem</button>
+      <button class="step-btn" onclick="showSlide(2)">3 · The Solution</button>
+      <button class="step-btn" onclick="showSlide(3)">4 · The Finding</button>
+    </div>
+
+    <!-- Slide 0: The Data -->
+    <div id="slide-0" class="design-panel active">
+      <div class="design-text">
+        <h3>Scotland's Complete Maternity Records</h3>
+        <p>Every hospital birth in Scotland between 2000 and 2015 was recorded — 841,252 pregnancies. Each record includes whether the mother smoked during pregnancy, her residential postcode, and her age, deprivation level, and urban/rural classification.</p>
+        <p>These records were linked to the Scottish Tobacco Retailers Register: a georeferenced list of every licensed tobacco outlet. Using kernel density estimation, each postcode was assigned a density value capturing the distance-weighted number of tobacco shops within 800 metres.</p>
+        <div class="callout"><strong>Key strength:</strong> Full population coverage means no sampling bias and sufficient statistical power for the analysis method used.</div>
+        <div class="design-nav">
+          <button disabled>← Previous</button>
+          <button class="primary" onclick="showSlide(1)">Next: The Problem →</button>
+        </div>
+      </div>
+      <svg class="design-svg" viewBox="0 0 400 280" xmlns="http://www.w3.org/2000/svg">
+        <!-- Scotland silhouette (simplified) -->
+        <path d="M180,20 C200,15 220,22 235,30 C255,40 265,55 260,75 C270,90 275,105 265,120 C275,135 280,155 265,170 C270,185 260,200 245,210 C235,225 215,235 200,240 C185,245 165,240 155,228 C140,215 135,198 140,180 C125,165 120,148 130,132 C118,118 115,100 125,85 C118,68 125,48 140,35 Z" fill="#dde8f0" stroke="#90afc5" stroke-width="1.5"/>
+        <!-- Dots representing births across Scotland -->
+        <circle cx="195" cy="85" r="3" fill="#1565c0" opacity="0.8"/>
+        <circle cx="175" cy="105" r="3" fill="#1565c0" opacity="0.8"/>
+        <circle cx="210" cy="120" r="3" fill="#1565c0" opacity="0.8"/>
+        <circle cx="185" cy="140" r="3" fill="#1565c0" opacity="0.8"/>
+        <circle cx="200" cy="155" r="3" fill="#1565c0" opacity="0.8"/>
+        <circle cx="170" cy="130" r="3" fill="#1565c0" opacity="0.8"/>
+        <circle cx="220" cy="100" r="3" fill="#1565c0" opacity="0.8"/>
+        <circle cx="160" cy="90" r="3" fill="#1565c0" opacity="0.8"/>
+        <circle cx="195" cy="70" r="3" fill="#1565c0" opacity="0.8"/>
+        <circle cx="215" cy="140" r="3" fill="#1565c0" opacity="0.8"/>
+        <circle cx="190" cy="165" r="2.5" fill="#1565c0" opacity="0.6"/>
+        <circle cx="175" cy="175" r="2.5" fill="#1565c0" opacity="0.6"/>
+        <circle cx="205" cy="175" r="2.5" fill="#1565c0" opacity="0.6"/>
+        <!-- Legend -->
+        <circle cx="50" cy="230" r="5" fill="#1565c0"/>
+        <text x="60" y="234" font-size="11" fill="#5c6a7a">Birth record</text>
+        <!-- Shop icon -->
+        <rect x="40" y="248" width="12" height="12" rx="2" fill="#f59e0b"/>
+        <text x="60" y="258" font-size="11" fill="#5c6a7a">Tobacco outlet</text>
+        <!-- Shop dots -->
+        <rect x="188" y="80" width="8" height="8" rx="1" fill="#f59e0b" opacity="0.7"/>
+        <rect x="198" y="147" width="8" height="8" rx="1" fill="#f59e0b" opacity="0.7"/>
+        <rect x="163" y="126" width="8" height="8" rx="1" fill="#f59e0b" opacity="0.7"/>
+        <rect x="205" y="113" width="8" height="8" rx="1" fill="#f59e0b" opacity="0.7"/>
+        <rect x="178" y="99" width="8" height="8" rx="1" fill="#f59e0b" opacity="0.7"/>
+        <rect x="172" y="168" width="8" height="8" rx="1" fill="#f59e0b" opacity="0.7"/>
+        <rect x="188" y="159" width="8" height="8" rx="1" fill="#f59e0b" opacity="0.7"/>
+        <text x="200" y="270" font-size="13" fill="#1a2332" text-anchor="middle" font-weight="600">Scotland 2000–2015</text>
+      </svg>
+    </div>
+
+    <!-- Slide 1: The Problem -->
+    <div id="slide-1" class="design-panel">
+      <div class="design-text">
+        <h3>Why Standard Studies Fall Short</h3>
+        <p>A simple cross-sectional analysis would compare different mothers living in different neighbourhoods. But this creates a confounding problem: deprived areas tend to have <em>both</em> more tobacco shops and higher smoking rates, for entirely separate reasons.</p>
+        <p>Even with statistical adjustment, it's nearly impossible to rule out the possibility that retailers locate where demand is already high — the opposite causal direction to what we want to test.</p>
+        <div class="callout"><strong>Confounding:</strong> Is it <em>"more shops → more smoking"</em>, or <em>"more demand → more shops"</em>? Cross-sectional studies cannot distinguish between these.</div>
+        <div class="design-nav">
+          <button onclick="showSlide(0)">← Previous</button>
+          <button class="primary" onclick="showSlide(2)">Next: The Solution →</button>
+        </div>
+      </div>
+      <svg class="design-svg" viewBox="0 0 420 260" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#c62828"/>
+          </marker>
+        </defs>
+        <!-- Area A: low density -->
+        <rect x="10" y="40" width="150" height="120" rx="10" fill="#e8f5e9" stroke="#66bb6a" stroke-width="2"/>
+        <text x="85" y="62" font-size="12" fill="#2e7d32" text-anchor="middle" font-weight="600">Low-density area</text>
+        <rect x="25" y="72" width="12" height="12" rx="2" fill="#f59e0b"/>
+        <text x="43" y="82" font-size="11" fill="#5c6a7a">1 shop</text>
+        <!-- Person A -->
+        <circle cx="85" cy="115" r="20" fill="#e8f5e9" stroke="#66bb6a" stroke-width="2"/>
+        <text x="85" y="121" font-size="18" text-anchor="middle">👩</text>
+        <text x="85" y="148" font-size="11" fill="#2e7d32" text-anchor="middle" font-weight="600">Not smoking</text>
+
+        <!-- Area B: high density -->
+        <rect x="260" y="40" width="150" height="120" rx="10" fill="#ffebee" stroke="#ef5350" stroke-width="2"/>
+        <text x="335" y="62" font-size="12" fill="#c62828" text-anchor="middle" font-weight="600">High-density area</text>
+        <rect x="268" y="72" width="12" height="12" rx="2" fill="#f59e0b"/>
+        <rect x="285" y="72" width="12" height="12" rx="2" fill="#f59e0b"/>
+        <rect x="302" y="72" width="12" height="12" rx="2" fill="#f59e0b"/>
+        <rect x="319" y="72" width="12" height="12" rx="2" fill="#f59e0b"/>
+        <text x="345" y="82" font-size="11" fill="#5c6a7a">5 shops</text>
+        <!-- Person B -->
+        <circle cx="335" cy="115" r="20" fill="#ffebee" stroke="#ef5350" stroke-width="2"/>
+        <text x="335" y="121" font-size="18" text-anchor="middle">👩</text>
+        <text x="335" y="148" font-size="11" fill="#c62828" text-anchor="middle" font-weight="600">Smoking</text>
+
+        <!-- Cross-sectional comparison arrow -->
+        <line x1="175" y1="100" x2="245" y2="100" stroke="#c62828" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arr)"/>
+        <text x="210" y="92" font-size="11" fill="#c62828" text-anchor="middle">Compare?</text>
+
+        <!-- Warning box -->
+        <rect x="80" y="185" width="260" height="58" rx="8" fill="#fff3e0" stroke="#fb8c00" stroke-width="1.5"/>
+        <text x="210" y="205" font-size="12" fill="#e65100" text-anchor="middle" font-weight="700">⚠ Problem: Different people!</text>
+        <text x="210" y="222" font-size="11" fill="#bf360c" text-anchor="middle">Their individual characteristics differ.</text>
+        <text x="210" y="236" font-size="11" fill="#bf360c" text-anchor="middle">Results may reflect who lives where, not why.</text>
+      </svg>
+    </div>
+
+    <!-- Slide 2: The Solution -->
+    <div id="slide-2" class="design-panel">
+      <div class="design-text">
+        <h3>Fixed-Effects: Each Mother as Her Own Control</h3>
+        <p>The key innovation is comparing the <em>same</em> mother across her different pregnancies. When a mother moves between pregnancies, her neighbourhood tobacco density changes. Her smoking status is tracked before and after.</p>
+        <p>Because we're comparing the same person to themselves, all stable individual characteristics — personality, genes, socioeconomic background — are automatically controlled for. Only time-varying factors can confound.</p>
+        <div class="callout"><strong>Result:</strong> 55,234 pregnancies to 22,927 mothers who moved and changed their smoking status. 68% moved at least once across pregnancies.</div>
+        <div class="design-nav">
+          <button onclick="showSlide(1)">← Previous</button>
+          <button class="primary" onclick="showSlide(3)">Next: The Finding →</button>
+        </div>
+      </div>
+      <svg class="design-svg" viewBox="0 0 420 280" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#1565c0"/>
+          </marker>
+          <marker id="arr3" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#388e3c"/>
+          </marker>
+        </defs>
+        <text x="210" y="22" font-size="13" fill="#5c6a7a" text-anchor="middle" font-weight="500">Same mother, two different pregnancies</text>
+
+        <!-- Pregnancy 1: Low density -->
+        <rect x="10" y="35" width="160" height="140" rx="10" fill="#e8f5e9" stroke="#66bb6a" stroke-width="2"/>
+        <text x="90" y="56" font-size="12" fill="#2e7d32" text-anchor="middle" font-weight="600">Pregnancy 1</text>
+        <text x="90" y="70" font-size="11" fill="#5c6a7a" text-anchor="middle">Low-density area</text>
+        <rect x="22" y="80" width="11" height="11" rx="2" fill="#f59e0b"/>
+        <text x="40" y="89" font-size="10" fill="#777">1 shop nearby</text>
+        <circle cx="90" cy="130" r="22" fill="#e3f2fd" stroke="#42a5f5" stroke-width="2"/>
+        <text x="90" y="137" font-size="18" text-anchor="middle">👩</text>
+        <rect x="55" y="158" width="70" height="20" rx="10" fill="#4caf50"/>
+        <text x="90" y="171" font-size="11" fill="white" text-anchor="middle" font-weight="600">Not smoking</text>
+
+        <!-- Arrow: moves between pregnancies -->
+        <line x1="183" y1="105" x2="237" y2="105" stroke="#1565c0" stroke-width="2" marker-end="url(#arr2)"/>
+        <text x="210" y="97" font-size="10" fill="#1565c0" text-anchor="middle" font-weight="600">Moves</text>
+        <text x="210" y="118" font-size="10" fill="#1565c0" text-anchor="middle">between</text>
+        <text x="210" y="129" font-size="10" fill="#1565c0" text-anchor="middle">pregnancies</text>
+
+        <!-- Pregnancy 2: High density -->
+        <rect x="250" y="35" width="160" height="140" rx="10" fill="#ffebee" stroke="#ef5350" stroke-width="2"/>
+        <text x="330" y="56" font-size="12" fill="#c62828" text-anchor="middle" font-weight="600">Pregnancy 2</text>
+        <text x="330" y="70" font-size="11" fill="#5c6a7a" text-anchor="middle">High-density area</text>
+        <rect x="258" y="80" width="11" height="11" rx="2" fill="#f59e0b"/>
+        <rect x="273" y="80" width="11" height="11" rx="2" fill="#f59e0b"/>
+        <rect x="288" y="80" width="11" height="11" rx="2" fill="#f59e0b"/>
+        <rect x="303" y="80" width="11" height="11" rx="2" fill="#f59e0b"/>
+        <text x="325" y="89" font-size="10" fill="#777">4 shops nearby</text>
+        <circle cx="330" cy="130" r="22" fill="#e3f2fd" stroke="#42a5f5" stroke-width="2"/>
+        <text x="330" y="137" font-size="18" text-anchor="middle">👩</text>
+        <rect x="295" y="158" width="70" height="20" rx="10" fill="#ef5350"/>
+        <text x="330" y="171" font-size="11" fill="white" text-anchor="middle" font-weight="600">Smoking</text>
+
+        <!-- Bottom note -->
+        <rect x="30" y="198" width="360" height="50" rx="8" fill="#e3eef9" stroke="#90bce0" stroke-width="1"/>
+        <text x="210" y="218" font-size="12" fill="#1565c0" text-anchor="middle" font-weight="700">✓ Individual differences cancel out</text>
+        <text x="210" y="234" font-size="11" fill="#5c6a7a" text-anchor="middle">Personality, genetics, and upbringing are constant across pregnancies.</text>
+
+        <text x="210" y="270" font-size="11" fill="#5c6a7a" text-anchor="middle">Only the neighbourhood environment changed.</text>
+      </svg>
+    </div>
+
+    <!-- Slide 3: Finding -->
+    <div id="slide-3" class="design-panel single">
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom:32px;">
+        <div class="chart-wrap" style="text-align:center; padding: 32px 24px;">
+          <div style="font-size:3rem; font-weight:700; color:#c62828; line-height:1;">1.67×</div>
+          <div style="font-size:13px; color:#5c6a7a; margin-top:6px;">95% CI: 1.27 – 2.20</div>
+          <div style="font-size:13px; color:#1a2332; margin-top:12px; font-weight:500;">Increased odds of smoking in the highest-density vs zero-density areas (continuous model)</div>
+        </div>
+        <div class="chart-wrap" style="text-align:center; padding: 32px 24px;">
+          <div style="font-size:3rem; font-weight:700; color:#e67e22; line-height:1;">1.37×</div>
+          <div style="font-size:13px; color:#5c6a7a; margin-top:6px;">95% CI: 1.15 – 1.63</div>
+          <div style="font-size:13px; color:#1a2332; margin-top:12px; font-weight:500;">Increased odds for Group 4 vs Group 0 (density categories, unadjusted for prevalence)</div>
+        </div>
+        <div class="chart-wrap" style="text-align:center; padding: 32px 24px;">
+          <div style="font-size:3rem; font-weight:700; color:#1565c0; line-height:1;">1.84×</div>
+          <div style="font-size:13px; color:#5c6a7a; margin-top:6px;">95% CI: 1.53 – 2.21</div>
+          <div style="font-size:13px; color:#1a2332; margin-top:12px; font-weight:500;">Increased odds for highest vs lowest neighbourhood smoking prevalence</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="max-width:600px; margin:0 auto;">
+        <p style="font-size:15px; line-height:1.7; color:#1a2332;"><strong>In plain language:</strong> A pregnant woman living in a neighbourhood with the highest tobacco retailer density is around <strong>67% more likely to be smoking during pregnancy</strong> than she would be if she lived in an area with no tobacco retailers nearby — <em>controlling for all her individual characteristics that don't change over time</em>.</p>
+        <p style="margin-top:14px; font-size:14px; color:#5c6a7a;">These findings constitute "the strongest evidence to date" of an association between neighbourhood tobacco availability and smoking (Clemens et al., 2020).</p>
+      </div>
+      <div class="design-nav" style="justify-content:center; margin-top:24px;">
+        <button onclick="showSlide(2)">← Previous</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ KERNEL DENSITY ══════════ -->
+<section id="kde">
+  <div class="container">
+    <div class="section-tag">Measuring exposure</div>
+    <h2>What Is Tobacco Outlet Density?</h2>
+    <p class="lead">The paper uses <strong>kernel density estimation</strong> (KDE) to assign each home address a tobacco exposure score. This often puzzles audiences. Here is a plain-English explanation.</p>
+
+    <div class="kde-cards">
+      <div class="kde-card">
+        <div class="kde-card-icon">📍</div>
+        <h3>What it measures</h3>
+        <p>A single number summarising how many tobacco shops are near each home, with closer shops weighted more heavily than distant ones. Every home in Scotland gets its own score based on its unique local retail landscape.</p>
+      </div>
+      <div class="kde-card">
+        <div class="kde-card-icon">⚖️</div>
+        <h3>Why not just count shops?</h3>
+        <p>A simple count treats a shop 10m from your door identically to one 790m away. KDE captures that proximity matters — a shop right outside your door is a daily cue; one at the far edge of an 800m boundary barely registers.</p>
+      </div>
+      <div class="kde-card">
+        <div class="kde-card-icon">🔥</div>
+        <h3>The heat-source analogy</h3>
+        <p>Think of each tobacco shop as a heat source. Your home's exposure score is the combined warmth you feel — shops right next door heat the space intensely; shops far away barely raise the temperature. KDE formalises this intuition.</p>
+      </div>
+    </div>
+
+    <h3 class="kde-sub">Simple Count vs Kernel Density: a worked example</h3>
+    <p style="color:var(--muted); font-size:14px; margin-bottom:22px;">Six tobacco shops are distributed around a home at various distances. Toggle between approaches to see how each method scores the home's tobacco exposure — and why the difference matters for policy.</p>
+
+    <div class="kde-toggle-row">
+      <button id="kde-btn-count" class="kde-toggle active" onclick="setKDEMode('count')">Simple buffer count</button>
+      <button id="kde-btn-kde" class="kde-toggle" onclick="setKDEMode('kde')">Kernel density</button>
+    </div>
+
+    <div class="kde-buffer-row">
+      <span class="kde-buffer-label">Buffer size:</span>
+      <input type="range" class="kde-buffer-slider" id="kde-buffer-slider"
+             min="300" max="1200" step="50" value="800"
+             oninput="updateKDEBuffer(+this.value)">
+      <span class="kde-buffer-val" id="kde-buffer-val">800m</span>
+      <span class="kde-buffer-note paper-val" id="kde-buffer-note">← as used in the paper</span>
+    </div>
+
+    <div class="kde-viz-grid">
+      <div class="kde-diagram-wrap">
+        <svg id="kde-diagram" viewBox="0 0 580 340" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+      <div id="kde-panel" class="kde-panel"></div>
+    </div>
+
+    <h3 class="kde-sub">How Distance Shapes the Score</h3>
+    <p style="color:var(--muted); font-size:14px; margin-bottom:16px;">The quartic kernel function used in the paper. The y-axis shows the contribution weight a shop at a given distance adds to the home's density score. Beyond 800m — roughly a 10-minute walk — shops contribute nothing.</p>
+    <div class="chart-wrap">
+      <div id="kernel-chart"></div>
+    </div>
+    <p class="chart-note" style="margin-top:8px;">Coloured dots show Shops A–E from the example above. The contrast between Shop A (close, high weight) and Shop E (distant, near-zero weight) is the key distinction KDE captures that a simple count misses.</p>
+  </div>
+</section>
+
+<!-- ══════════ FOREST PLOT RESULTS ══════════ -->
+<section id="results">
+  <div class="container">
+    <div class="section-tag">Adjusted odds ratios</div>
+    <h2>Regression Model Results</h2>
+    <p class="lead">Fixed-effects conditional logistic regression, using each mother as her own control. Toggle between models below.</p>
+
+    <div class="model-tabs">
+      <button class="tab-btn active" onclick="selectModel('m1', this)">Retailer density<br><small>Basic model</small></button>
+      <button class="tab-btn" onclick="selectModel('m2', this)">Retailer density<br><small>+ prevalence control</small></button>
+      <button class="tab-btn" onclick="selectModel('prev', this)">Neighbourhood<br>smoking prevalence</button>
+    </div>
+
+    <div class="chart-wrap">
+      <div id="forest-svg"></div>
+    </div>
+    <p class="chart-note">
+      Diamonds show point estimates; horizontal lines show 95% confidence intervals.
+      Reference category (Group 0) is areas with zero tobacco retailer density (or zero neighbourhood smoking prevalence).
+      <span></span><span style="background:#888"></span> Lighter points indicate values approximated from reported trends (exact Group 4 and reference values are from the paper).
+    </p>
+  </div>
+</section>
+
+<!-- ══════════ DOSE-RESPONSE ══════════ -->
+<section id="dose">
+  <div class="container">
+    <div class="section-tag">Continuous analysis</div>
+    <h2>Dose–Response Relationship</h2>
+    <p class="lead">When retailer density is modelled as a continuous variable using a fractional polynomial function, the shape of the relationship becomes visible: risk increases steeply at lower densities and continues rising, but more gradually, at higher densities.</p>
+
+    <div class="chart-wrap">
+      <div id="dose-svg"></div>
+    </div>
+    <p class="chart-note">
+      Odds ratio (y-axis) relative to zero retailer density, plotted against continuous tobacco retailer density (outlets per km²).
+      Shaded band shows 95% confidence interval. At the highest observed density (~35 outlets/km²): <strong>OR 1.67 (1.27–2.20)</strong>.
+      Curve modelled as a fractional polynomial (square-root function) fitted to paper-reported endpoints.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════ TABLE 1 EXPLORER ══════════ -->
+<section id="explorer">
+  <div class="container">
+    <div class="section-tag">Descriptive statistics</div>
+    <h2>Who Smokes During Pregnancy?</h2>
+    <p class="lead">Raw smoking rates from the analysis sample of 55,234 pregnancies (22,927 mothers who changed smoking status across pregnancies). Explore how smoking rates vary by different characteristics.</p>
+
+    <div class="explorer-tabs">
+      <button class="explorer-tab active" onclick="showExplorer('density', this)">Retailer Density</button>
+      <button class="explorer-tab" onclick="showExplorer('prevalence', this)">Neighbourhood Prevalence</button>
+      <button class="explorer-tab" onclick="showExplorer('simd', this)">Deprivation (SIMD)</button>
+      <button class="explorer-tab" onclick="showExplorer('age', this)">Mother's Age</button>
+      <button class="explorer-tab" onclick="showExplorer('urban', this)">Urban / Rural</button>
+    </div>
+
+    <div id="explorer-density" class="explorer-panel active"></div>
+    <div id="explorer-prevalence" class="explorer-panel"></div>
+    <div id="explorer-simd" class="explorer-panel"></div>
+    <div id="explorer-age" class="explorer-panel"></div>
+    <div id="explorer-urban" class="explorer-panel"></div>
+  </div>
+</section>
+
+<!-- ══════════ POLICY SIMULATOR ══════════ -->
+<section id="policy">
+  <div class="container">
+    <div class="section-tag">Policy implications</div>
+    <h2>Policy Impact Simulator</h2>
+    <p class="lead">How many fewer smoking pregnancies per year might result from reducing tobacco retailer density in Scotland's highest-density areas?</p>
+
+    <div class="simulator-grid">
+      <div class="sim-card">
+        <label>Density reduction in high-density areas (Groups 3 & 4)</label>
+        <input type="range" id="sim-slider" min="0" max="100" value="50" oninput="updateSimulator(this.value)">
+        <div class="slider-val" id="sim-pct">50%</div>
+        <div class="slider-sublabel">reduction in retailer density</div>
+
+        <div style="margin-top:28px; font-size:13px; color:rgba(255,255,255,0.6); line-height:1.8;">
+          <strong style="color:rgba(255,255,255,0.85);">Assumptions</strong><br>
+          Scotland ~50,000 births/year<br>
+          ~13% in high-density areas = 6,500/year<br>
+          Current smoking rate in those areas: 53.5%<br>
+          Expected rate at zero density: 46.3%<br>
+          Potential reduction: 7.2 percentage points<br>
+        </div>
+      </div>
+
+      <div class="sim-card">
+        <label>Estimated annual impact</label>
+        <div class="impact-display">
+          <div class="impact-row">
+            <span class="key">Fewer smoking pregnancies/year</span>
+            <span class="val green" id="sim-count">234</span>
+          </div>
+          <div class="impact-row">
+            <span class="key">% of all smoking pregnancies in Scotland</span>
+            <span class="val" id="sim-pct2">4.3%</span>
+          </div>
+          <div class="impact-row">
+            <span class="key">Pregnancies addressed out of 6,500</span>
+            <span class="val" id="sim-of">3,471 → 3,237</span>
+          </div>
+        </div>
+        <div style="margin-top:16px; font-size:13px; color:rgba(255,255,255,0.55);">Impact scale:</div>
+        <div class="sim-bar-track">
+          <div class="sim-bar-fill" id="sim-bar" style="width:50%"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:rgba(255,255,255,0.35); margin-top:4px;">
+          <span>0</span><span>Maximum potential: ~468/year</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="sim-disclaimer">⚠ This is a simplified illustrative calculation for educational purposes. The OR from the fixed-effects model represents within-individual changes and may not translate directly to a population-level intervention effect. Actual impact would depend on the mechanism, implementation fidelity, and behavioural responses. Scotland annual births estimated at ~50,000; smoking pregnancy rate ~14%; analysis sample proportions used to estimate high-density area share.</p>
+  </div>
+</section>
+
+<!-- ══════════ FOOTER ══════════ -->
+<footer>
+  <div class="container">
+    <div class="footer-cite">
+      <h4>Citation</h4>
+      <p>Clemens T, Dibben C, Pearce J, Shortt NK. <em>Neighbourhood tobacco supply and individual maternal smoking during pregnancy: a fixed-effects longitudinal analysis using routine data.</em> Tobacco Control 2020; <strong>29</strong>:7–14.</p>
+      <p style="margin-top:8px;"><a href="https://doi.org/10.1136/tobaccocontrol-2018-054422">doi:10.1136/tobaccocontrol-2018-054422</a></p>
+      <p class="footer-meta">Open access · CC BY 4.0 · Published by BMJ · Data: Scottish Morbidity Record SMR02, Scottish Tobacco Retailers Register</p>
+    </div>
+    <div class="footer-cite">
+      <h4>Data Sources</h4>
+      <p>Maternity records: <a href="https://www.ndc.scot.nhs.uk/National-Datasets/data.asp?SubID=3">Scottish Morbidity Record SMR02</a>, NHS Scotland<br>
+      Tobacco retailers: Scottish Tobacco Retailers Register (September 2012)<br>
+      Deprivation: <a href="https://www.gov.scot/collections/scottish-index-of-multiple-deprivation-2020/">Scottish Index of Multiple Deprivation (SIMD)</a></p>
+      <p class="footer-meta">This interactive visualisation was built using D3.js. Intermediate-group OR estimates approximated from paper-reported trends; Group 4 and reference values are exact.</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ══════════════════════════════════════════
+   DATA
+══════════════════════════════════════════ */
+const MODELS = {
+  m1: {
+    title: 'Retailer density (basic model)',
+    subtitle: 'Adjusted for age, deprivation, urban/rural, year trend',
+    groups: [
+      { label: 'Group 0 · Zero outlets',       or: 1.00, lo: 1.00, hi: 1.00, isRef: true  },
+      { label: 'Group 1 · >0–4.2/km²',         or: 1.18, lo: 1.03, hi: 1.35, approx: true },
+      { label: 'Group 2 · >4.2–10.5/km²',      or: 1.08, lo: 0.95, hi: 1.22, approx: true },
+      { label: 'Group 3 · >10.5–18.9/km²',     or: 1.25, lo: 1.07, hi: 1.46, approx: true },
+      { label: 'Group 4 · >18.9/km²  ★',       or: 1.37, lo: 1.15, hi: 1.63, approx: false},
+    ]
+  },
+  m2: {
+    title: 'Retailer density (+ prevalence control)',
+    subtitle: 'Additionally adjusted for neighbourhood maternal smoking prevalence',
+    groups: [
+      { label: 'Group 0 · Zero outlets',        or: 1.00, lo: 1.00, hi: 1.00, isRef: true  },
+      { label: 'Group 1 · >0–4.2/km²',          or: 1.20, lo: 1.05, hi: 1.37, approx: true },
+      { label: 'Group 2 · >4.2–10.5/km²',       or: 1.10, lo: 0.97, hi: 1.25, approx: true },
+      { label: 'Group 3 · >10.5–18.9/km²',      or: 1.27, lo: 1.09, hi: 1.48, approx: true },
+      { label: 'Group 4 · >18.9/km²  ★',        or: 1.39, lo: 1.17, hi: 1.66, approx: false},
+    ]
+  },
+  prev: {
+    title: 'Neighbourhood smoking prevalence',
+    subtitle: 'Adjusted for age, deprivation, urban/rural, year trend, retailer density',
+    groups: [
+      { label: 'Group 0 · Zero prevalence',     or: 1.00, lo: 1.00, hi: 1.00, isRef: true  },
+      { label: 'Group 1 · >0%–10%',             or: 1.07, lo: 0.87, hi: 1.32, approx: true },
+      { label: 'Group 2 · >10%–20%',            or: 1.38, lo: 1.14, hi: 1.67, approx: true },
+      { label: 'Group 3 · >20%–30%',            or: 1.57, lo: 1.31, hi: 1.87, approx: true },
+      { label: 'Group 4 · >30%  ★',             or: 1.84, lo: 1.53, hi: 2.21, approx: false},
+    ]
+  }
+};
+
+const EXPLORER_DATA = {
+  density: {
+    title: 'Tobacco retailer density group',
+    overall: 50.78,
+    rows: [
+      { label: 'Group 0 · Zero outlets',      pct: 46.33, n: 2903 },
+      { label: 'Group 1 · >0–4.2/km²',        pct: 50.00, n: 24490 },
+      { label: 'Group 2 · >4.2–10.5/km²',     pct: 51.40, n: 20720 },
+      { label: 'Group 3 · >10.5–18.9/km²',    pct: 53.12, n: 4379 },
+      { label: 'Group 4 · >18.9/km²',         pct: 54.12, n: 2742 },
+    ]
+  },
+  prevalence: {
+    title: 'Neighbourhood maternal smoking prevalence',
+    overall: 50.78,
+    rows: [
+      { label: 'Group 0 · Zero prevalence',   pct: 40.73, n: 631 },
+      { label: 'Group 1 · >0%–10%',           pct: 43.71, n: 7159 },
+      { label: 'Group 2 · >10%–20%',          pct: 48.90, n: 13995 },
+      { label: 'Group 3 · >20%–30%',          pct: 50.18, n: 15597 },
+      { label: 'Group 4 · >30%',              pct: 55.98, n: 17852 },
+    ]
+  },
+  simd: {
+    title: 'Scottish Index of Multiple Deprivation (SIMD)',
+    overall: 50.78,
+    rows: [
+      { label: 'Q1 · Most deprived',          pct: 53.34, n: 13381 },
+      { label: 'Q2',                          pct: 51.90, n: 14207 },
+      { label: 'Q3',                          pct: 49.84, n: 12154 },
+      { label: 'Q4',                          pct: 49.51, n: 9263  },
+      { label: 'Q5 · Least deprived',         pct: 46.48, n: 6229  },
+    ]
+  },
+  age: {
+    title: "Mother's age at delivery",
+    overall: 50.78,
+    rows: [
+      { label: '18–19',                       pct: 55.89, n: 4666  },
+      { label: '20–24',                       pct: 56.27, n: 16065 },
+      { label: '25–29',                       pct: 50.85, n: 16404 },
+      { label: '30–34',                       pct: 46.84, n: 12019 },
+      { label: '35–39',                       pct: 40.69, n: 5237  },
+      { label: '40–44',                       pct: 36.05, n: 821   },
+      { label: '45+',                         pct: 18.18, n: 22    },
+    ]
+  },
+  urban: {
+    title: 'Urban/rural classification',
+    overall: 50.78,
+    rows: [
+      { label: 'Large urban',                 pct: 51.38, n: 17298 },
+      { label: 'Other urban',                 pct: 51.06, n: 22698 },
+      { label: 'Accessible small town',       pct: 50.19, n: 5389  },
+      { label: 'Remote small town',           pct: 51.51, n: 2285  },
+      { label: 'Accessible rural',            pct: 48.59, n: 5269  },
+      { label: 'Remote rural',                pct: 49.24, n: 2295  },
+    ]
+  }
+};
+
+/* ══════════════════════════════════════════
+   STUDY DESIGN ANIMATION
+══════════════════════════════════════════ */
+let currentSlide = 0;
+function showSlide(n) {
+  document.querySelectorAll('.design-panel').forEach((p, i) => {
+    p.classList.toggle('active', i === n);
+  });
+  document.querySelectorAll('.step-btn').forEach((b, i) => {
+    b.classList.toggle('active', i === n);
+  });
+  currentSlide = n;
+}
+
+/* ══════════════════════════════════════════
+   FOREST PLOT
+══════════════════════════════════════════ */
+let currentModel = 'm1';
+
+function selectModel(key, btn) {
+  currentModel = key;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  drawForestPlot(key);
+}
+
+function drawForestPlot(modelKey) {
+  const container = document.getElementById('forest-svg');
+  const data = MODELS[modelKey];
+  container.innerHTML = '';
+
+  const W = container.clientWidth || 700;
+  const ml = 230, mr = 180, mt = 24, mb = 50;
+  const w = W - ml - mr;
+  const rowH = 52;
+  const H = data.groups.length * rowH + mt + mb;
+
+  const svg = d3.select(container).append('svg')
+    .attr('width', W).attr('height', H);
+  const g = svg.append('g').attr('transform', `translate(${ml},${mt})`);
+
+  const xDom = modelKey === 'prev' ? [0.7, 2.5] : [0.7, 1.9];
+  const x = d3.scaleLinear().domain(xDom).range([0, w]).clamp(true);
+  const y = d3.scaleBand()
+    .domain(data.groups.map(d => d.label))
+    .range([0, data.groups.length * rowH])
+    .padding(0.25);
+
+  // Alternating row shading
+  data.groups.forEach((d, i) => {
+    if (i % 2 === 0) {
+      g.append('rect')
+        .attr('x', -ml + 4).attr('y', y(d.label) - 1)
+        .attr('width', W - 8).attr('height', y.bandwidth() + 2)
+        .attr('fill', '#f8fafc');
+    }
+  });
+
+  // Reference line OR=1
+  g.append('line')
+    .attr('x1', x(1)).attr('x2', x(1))
+    .attr('y1', 0).attr('y2', data.groups.length * rowH)
+    .attr('stroke', '#aab5c4').attr('stroke-width', 1.5)
+    .attr('stroke-dasharray', '5,4');
+
+  // X axis
+  const ticks = modelKey === 'prev'
+    ? [0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25]
+    : [0.75, 1.0, 1.25, 1.5, 1.75];
+
+  g.append('g')
+    .attr('transform', `translate(0,${data.groups.length * rowH})`)
+    .call(d3.axisBottom(x).tickValues(ticks).tickFormat(d3.format('.2f')))
+    .call(ax => ax.select('.domain').attr('stroke', '#dde3ec'))
+    .call(ax => ax.selectAll('line').attr('stroke', '#dde3ec'))
+    .call(ax => ax.selectAll('text').attr('fill', '#5c6a7a').attr('font-size', 12).attr('font-family', 'Inter,sans-serif'));
+
+  g.append('text')
+    .attr('x', x(1)).attr('y', data.groups.length * rowH + 40)
+    .attr('text-anchor', 'middle').attr('font-size', 12).attr('fill', '#5c6a7a')
+    .attr('font-family', 'Inter,sans-serif')
+    .text('Adjusted Odds Ratio (reference = Group 0)');
+
+  // Y axis labels
+  data.groups.forEach(d => {
+    const cy = y(d.label) + y.bandwidth() / 2;
+    g.append('text')
+      .attr('x', -10).attr('y', cy + 4)
+      .attr('text-anchor', 'end').attr('font-size', 13)
+      .attr('fill', d.isRef ? '#aab5c4' : '#1a2332')
+      .attr('font-family', 'Inter,sans-serif')
+      .attr('font-weight', d.isRef ? '400' : '500')
+      .text(d.label);
+  });
+
+  // Plot CIs and estimates
+  data.groups.forEach(d => {
+    const cy = y(d.label) + y.bandwidth() / 2;
+    if (d.isRef) {
+      g.append('text')
+        .attr('x', x(1)).attr('y', cy + 4)
+        .attr('text-anchor', 'middle').attr('font-size', 12)
+        .attr('fill', '#aab5c4').attr('font-family', 'Inter,sans-serif')
+        .text('Reference');
+      return;
+    }
+
+    const col = d.approx ? '#9db5cb' : '#1565c0';
+    const fillCol = d.approx ? '#b8cdd8' : '#1565c0';
+
+    // CI line
+    g.append('line')
+      .attr('x1', x(d.lo)).attr('x2', x(d.hi))
+      .attr('y1', cy).attr('y2', cy)
+      .attr('stroke', col).attr('stroke-width', 2);
+
+    // CI caps
+    [d.lo, d.hi].forEach(cap => {
+      g.append('line')
+        .attr('x1', x(cap)).attr('x2', x(cap))
+        .attr('y1', cy - 6).attr('y2', cy + 6)
+        .attr('stroke', col).attr('stroke-width', 2);
+    });
+
+    // Diamond point estimate
+    const sz = 7;
+    g.append('polygon')
+      .attr('points', [
+        [x(d.or), cy - sz], [x(d.or) + sz, cy],
+        [x(d.or), cy + sz], [x(d.or) - sz, cy]
+      ].map(p => p.join(',')).join(' '))
+      .attr('fill', fillCol);
+
+    // OR label on right
+    const label = d.approx
+      ? `${d.or.toFixed(2)} (${d.lo.toFixed(2)}–${d.hi.toFixed(2)})†`
+      : `${d.or.toFixed(2)} (${d.lo.toFixed(2)}–${d.hi.toFixed(2)})`;
+    g.append('text')
+      .attr('x', w + 10).attr('y', cy + 4)
+      .attr('font-size', 12).attr('fill', d.approx ? '#9db5cb' : '#1a2332')
+      .attr('font-family', 'Inter,sans-serif')
+      .text(label);
+  });
+
+  // Model subtitle
+  svg.append('text')
+    .attr('x', ml).attr('y', H - 8)
+    .attr('font-size', 11).attr('fill', '#9db5cb')
+    .attr('font-family', 'Inter,sans-serif')
+    .text(data.subtitle);
+}
+
+/* ══════════════════════════════════════════
+   DOSE-RESPONSE CURVE
+══════════════════════════════════════════ */
+function drawDoseResponse() {
+  const container = document.getElementById('dose-svg');
+  container.innerHTML = '';
+
+  const W = container.clientWidth || 700;
+  const ml = 60, mr = 30, mt = 24, mb = 56;
+  const w = W - ml - mr;
+  const H = 340;
+  const h = H - mt - mb;
+
+  // Fractional polynomial: OR(x) = exp(β * √x)
+  const maxX = 35;
+  const beta    = Math.log(1.67) / Math.sqrt(maxX);
+  const betaLo  = Math.log(1.27) / Math.sqrt(maxX);
+  const betaHi  = Math.log(2.20) / Math.sqrt(maxX);
+
+  const pts = d3.range(0, maxX + 0.25, 0.25).map(x => ({
+    x,
+    or:   Math.exp(beta   * Math.sqrt(x)),
+    lo:   Math.exp(betaLo * Math.sqrt(x)),
+    hi:   Math.exp(betaHi * Math.sqrt(x))
+  }));
+
+  const svg = d3.select(container).append('svg').attr('width', W).attr('height', H);
+  const g   = svg.append('g').attr('transform', `translate(${ml},${mt})`);
+
+  const x = d3.scaleLinear().domain([0, maxX]).range([0, w]);
+  const y = d3.scaleLinear().domain([0.9, 2.4]).range([h, 0]);
+
+  // Grid lines
+  [1.0, 1.25, 1.5, 1.75, 2.0].forEach(v => {
+    g.append('line')
+      .attr('x1', 0).attr('x2', w)
+      .attr('y1', y(v)).attr('y2', y(v))
+      .attr('stroke', '#eef1f5').attr('stroke-width', 1);
+  });
+
+  // CI area
+  const area = d3.area()
+    .x(d => x(d.x))
+    .y0(d => y(d.lo))
+    .y1(d => y(d.hi))
+    .curve(d3.curveBasis);
+
+  g.append('path')
+    .datum(pts)
+    .attr('d', area)
+    .attr('fill', 'rgba(21,101,192,0.12)');
+
+  // Reference line OR=1
+  g.append('line')
+    .attr('x1', 0).attr('x2', w)
+    .attr('y1', y(1)).attr('y2', y(1))
+    .attr('stroke', '#aab5c4').attr('stroke-width', 1.5)
+    .attr('stroke-dasharray', '6,4');
+
+  // OR line
+  const line = d3.line().x(d => x(d.x)).y(d => y(d.or)).curve(d3.curveBasis);
+  g.append('path')
+    .datum(pts)
+    .attr('d', line)
+    .attr('fill', 'none')
+    .attr('stroke', '#1565c0')
+    .attr('stroke-width', 2.5);
+
+  // Axes
+  g.append('g')
+    .attr('transform', `translate(0,${h})`)
+    .call(d3.axisBottom(x).ticks(8))
+    .call(ax => ax.select('.domain').attr('stroke', '#dde3ec'))
+    .call(ax => ax.selectAll('line').attr('stroke', '#dde3ec'))
+    .call(ax => ax.selectAll('text').attr('fill', '#5c6a7a').attr('font-size', 12).attr('font-family', 'Inter,sans-serif'));
+
+  g.append('g')
+    .call(d3.axisLeft(y).tickValues([1.0, 1.25, 1.5, 1.75, 2.0]).tickFormat(d3.format('.2f')))
+    .call(ax => ax.select('.domain').attr('stroke', '#dde3ec'))
+    .call(ax => ax.selectAll('line').attr('stroke', '#dde3ec'))
+    .call(ax => ax.selectAll('text').attr('fill', '#5c6a7a').attr('font-size', 12).attr('font-family', 'Inter,sans-serif'));
+
+  // Axis labels
+  svg.append('text')
+    .attr('x', ml + w / 2).attr('y', H - 6)
+    .attr('text-anchor', 'middle').attr('font-size', 12).attr('fill', '#5c6a7a')
+    .attr('font-family', 'Inter,sans-serif')
+    .text('Tobacco retailer density (outlets per km²)');
+
+  svg.append('text')
+    .attr('transform', `translate(14, ${mt + h / 2}) rotate(-90)`)
+    .attr('text-anchor', 'middle').attr('font-size', 12).attr('fill', '#5c6a7a')
+    .attr('font-family', 'Inter,sans-serif')
+    .text('Adjusted Odds Ratio');
+
+  // Tooltip interactions
+  const tooltip = d3.select(container).append('div')
+    .style('position', 'absolute').style('display', 'none')
+    .style('background', '#fff').style('border', '1px solid #dde3ec')
+    .style('border-radius', '8px').style('padding', '10px 14px')
+    .style('font-size', '13px').style('pointer-events', 'none')
+    .style('box-shadow', '0 4px 16px rgba(0,0,0,0.1)')
+    .style('font-family', 'Inter,sans-serif');
+
+  const bisect = d3.bisector(d => d.x).left;
+  const overlay = g.append('rect')
+    .attr('width', w).attr('height', h)
+    .attr('fill', 'transparent').attr('cursor', 'crosshair');
+
+  const vline = g.append('line')
+    .attr('y1', 0).attr('y2', h)
+    .attr('stroke', '#1565c0').attr('stroke-width', 1).attr('stroke-dasharray', '4,3')
+    .style('display', 'none');
+
+  const dot = g.append('circle').attr('r', 5)
+    .attr('fill', '#1565c0').attr('stroke', '#fff').attr('stroke-width', 2)
+    .style('display', 'none');
+
+  overlay.on('mousemove', function(event) {
+    const [mx] = d3.pointer(event);
+    const xVal = x.invert(mx);
+    const i = bisect(pts, xVal);
+    const d = pts[Math.min(i, pts.length - 1)];
+    vline.style('display', null).attr('x1', x(d.x)).attr('x2', x(d.x));
+    dot.style('display', null).attr('cx', x(d.x)).attr('cy', y(d.or));
+    const rect = container.getBoundingClientRect();
+    tooltip.style('display', 'block')
+      .style('left', (event.clientX - rect.left + 14) + 'px')
+      .style('top',  (event.clientY - rect.top  - 50) + 'px')
+      .html(`<strong>Density: ${d.x.toFixed(1)} outlets/km²</strong><br>
+             OR: <strong>${d.or.toFixed(3)}</strong><br>
+             95% CI: ${d.lo.toFixed(3)} – ${d.hi.toFixed(3)}`);
+  })
+  .on('mouseleave', () => {
+    vline.style('display', 'none');
+    dot.style('display', 'none');
+    tooltip.style('display', 'none');
+  });
+
+  // Annotation for Group 4 boundary
+  g.append('line')
+    .attr('x1', x(18.9)).attr('x2', x(18.9))
+    .attr('y1', 0).attr('y2', h)
+    .attr('stroke', '#f59e0b').attr('stroke-width', 1).attr('stroke-dasharray', '4,3').attr('opacity', 0.7);
+
+  g.append('text')
+    .attr('x', x(19.5)).attr('y', 16)
+    .attr('font-size', 10).attr('fill', '#f59e0b')
+    .attr('font-family', 'Inter,sans-serif')
+    .text('Group 4 threshold');
+}
+
+/* ══════════════════════════════════════════
+   KERNEL DENSITY EXPLAINER
+══════════════════════════════════════════ */
+const KDE_HOME   = { x: 280, y: 185 };
+let   KDE_BW_PX    = 155;                  // 800m in SVG pixels (mutable)
+let   KDE_BUFFER_M = 800;                 // current buffer in metres (mutable)
+const KDE_M_PX     = 800 / 155;          // fixed scale: metres per pixel (~5.16)
+
+// Six shops at varied distances from home
+const KDE_SHOPS = [
+  { id: 'A', x: 312, y: 148 },   // 252m — very close
+  { id: 'B', x: 375, y: 192 },   // 492m — medium
+  { id: 'C', x: 200, y: 245 },   // 516m — medium
+  { id: 'D', x: 290, y: 295 },   // 570m — far inside
+  { id: 'E', x: 160, y: 135 },   // 671m — near edge
+  { id: 'F', x: 450, y: 210 },   // 887m — outside buffer
+];
+
+let kdeMode = 'count';
+
+function kdeKernel(distPx) {
+  if (distPx >= KDE_BW_PX) return 0;
+  const t = distPx / KDE_BW_PX;
+  return Math.pow(1 - t * t, 2);
+}
+
+function kdeShopDist(s) {
+  return Math.hypot(s.x - KDE_HOME.x, s.y - KDE_HOME.y);
+}
+
+function kdeEnrich(shops) {
+  return shops.map(s => {
+    const d = kdeShopDist(s);
+    return { ...s, distPx: d, distM: Math.round(d * KDE_M_PX / 10) * 10,
+             k: kdeKernel(d), inside: d < KDE_BW_PX };   // full precision — no rounding
+  });
+}
+
+// Format a kernel weight for display; handles near-zero gracefully
+function fmtK(k) {
+  if (k <= 0)    return '—';
+  if (k < 0.005) return '+<0.01';
+  return '+' + k.toFixed(2);
+}
+
+function updateKDEBuffer(m) {
+  KDE_BUFFER_M = m;
+  KDE_BW_PX    = m * 155 / 800;
+  document.getElementById('kde-buffer-val').textContent = m + 'm';
+  const note = document.getElementById('kde-buffer-note');
+  note.textContent = m === 800 ? '← as used in the paper' : '(paper used 800m)';
+  note.className   = 'kde-buffer-note' + (m === 800 ? ' paper-val' : '');
+  const diag = document.getElementById('kde-diagram');
+  diag.style.opacity = '0';
+  setTimeout(() => { drawKDEDiagram(kdeMode); diag.style.opacity = '1'; }, 180);
+  updateKDEPanel(kdeMode);
+  d3.select('#kernel-chart').html('');
+  drawKernelDecayChart();
+}
+
+function setKDEMode(mode) {
+  kdeMode = mode;
+  document.getElementById('kde-btn-count').classList.toggle('active', mode === 'count');
+  document.getElementById('kde-btn-kde').classList.toggle('active', mode === 'kde');
+  const diag = document.getElementById('kde-diagram');
+  diag.style.opacity = '0';
+  setTimeout(() => { drawKDEDiagram(mode); diag.style.opacity = '1'; }, 180);
+  updateKDEPanel(mode);
+}
+
+function drawKDEDiagram(mode) {
+  const ns  = 'http://www.w3.org/2000/svg';
+  const svg = document.getElementById('kde-diagram');
+  svg.innerHTML = '';
+  const shops = kdeEnrich(KDE_SHOPS);
+
+  function el(tag, attrs, parent) {
+    const e = document.createElementNS(ns, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function txt(str, attrs, parent) {
+    const e = el('text', attrs, parent);
+    e.textContent = str;
+    return e;
+  }
+
+  // Defs: clip + radial gradients for KDE mode
+  const defs = el('defs', {}, svg);
+  const cp   = el('clipPath', { id: 'kdec' }, defs);
+  el('rect', { x: 0, y: 0, width: 580, height: 340 }, cp);
+
+  if (mode === 'kde') {
+    shops.filter(s => s.inside).forEach(s => {
+      const g = el('radialGradient', { id: `kgr${s.id}`, cx: '50%', cy: '50%', r: '50%' }, defs);
+      el('stop', { offset: '0%',   'stop-color': '#f59e0b', 'stop-opacity': (s.k * 0.55).toFixed(3) }, g);
+      el('stop', { offset: '100%', 'stop-color': '#f59e0b', 'stop-opacity': '0' }, g);
+    });
+  }
+
+  const g = el('g', { 'clip-path': 'url(#kdec)' }, svg);
+
+  // Grid
+  for (let x = 0; x <= 580; x += 40)
+    el('line', { x1: x, y1: 0, x2: x, y2: 340, stroke: '#edf0f5', 'stroke-width': 1 }, g);
+  for (let y = 0; y <= 340; y += 40)
+    el('line', { x1: 0, y1: y, x2: 580, y2: y, stroke: '#edf0f5', 'stroke-width': 1 }, g);
+
+  if (mode === 'kde') {
+    // Heat gradients radiating from each shop
+    shops.filter(s => s.inside).forEach(s =>
+      el('circle', { cx: s.x, cy: s.y, r: KDE_BW_PX, fill: `url(#kgr${s.id})` }, g));
+  }
+
+  if (mode === 'count') {
+    // 800m buffer circle
+    el('circle', { cx: KDE_HOME.x, cy: KDE_HOME.y, r: KDE_BW_PX,
+      fill: 'rgba(21,101,192,0.05)', stroke: '#1565c0',
+      'stroke-width': 2, 'stroke-dasharray': '8,5' }, g);
+    // Label: clamp so it never goes off the top or right of the SVG
+    const bufLblX = Math.min(574, KDE_HOME.x + KDE_BW_PX - 8);
+    const bufLblY = Math.max(14, KDE_HOME.y - KDE_BW_PX + 14);
+    txt(`${KDE_BUFFER_M}m buffer`, { x: bufLblX, y: bufLblY,
+      fill: '#1565c0', 'font-size': 11, 'font-family': 'Inter,sans-serif',
+      'text-anchor': 'end', 'font-weight': 600 }, g);
+  }
+
+  // Shops
+  shops.forEach(s => {
+    const sg = el('g', {}, g);
+    const fill   = s.inside ? '#f59e0b' : '#bdbdbd';
+    const stroke = s.inside ? '#d97706' : '#9e9e9e';
+    const tFill  = s.inside ? '#78350f' : '#bdbdbd';
+    const dFill  = s.inside ? '#a16207' : '#d0d0d0';
+
+    el('rect',  { x: s.x-10, y: s.y-10, width: 20, height: 20, rx: 4,
+                  fill, stroke, 'stroke-width': 1.5 }, sg);
+    txt(`Shop ${s.id}`, { x: s.x, y: s.y+25, 'text-anchor': 'middle',
+      'font-size': 11, 'font-family': 'Inter,sans-serif', fill: tFill, 'font-weight': 600 }, sg);
+    txt(`${s.distM}m`, { x: s.x, y: s.y+37, 'text-anchor': 'middle',
+      'font-size': 10, 'font-family': 'Inter,sans-serif', fill: dFill }, sg);
+
+    if (!s.inside)
+      txt(`outside ${KDE_BUFFER_M}m`, { x: s.x, y: s.y-16, 'text-anchor': 'middle',
+        'font-size': 10, 'font-family': 'Inter,sans-serif', fill: '#bdbdbd' }, sg);
+
+    if (mode === 'kde' && s.inside) {
+      const kLabel = s.k < 0.005 ? '<0.01' : s.k.toFixed(2);
+      const bx = s.x + 11, by = s.y - 23;
+      el('rect',  { x: bx, y: by, width: 40, height: 16, rx: 4, fill: '#1565c0' }, sg);
+      txt(`+${kLabel}`, { x: bx + 20, y: by + 11, 'text-anchor': 'middle',
+        'font-size': 10, 'font-family': 'Inter,sans-serif', fill: 'white', 'font-weight': 700 }, sg);
+    }
+  });
+
+  // Home icon
+  const hg = el('g', { transform: `translate(${KDE_HOME.x},${KDE_HOME.y})` }, g);
+  el('polygon', { points: '-16,-14 0,-30 16,-14',
+    fill: '#0d2137', stroke: 'white', 'stroke-width': 2 }, hg);
+  el('rect', { x: -13, y: -14, width: 26, height: 24,
+    fill: '#0d2137', stroke: 'white', 'stroke-width': 2 }, hg);
+  el('rect', { x: -6, y: -1, width: 12, height: 11, rx: 2,
+    fill: 'white', opacity: 0.85 }, hg);
+  txt('Home', { x: 0, y: 28, 'text-anchor': 'middle',
+    'font-size': 12, 'font-family': 'Inter,sans-serif', fill: '#0d2137', 'font-weight': 700 }, hg);
+}
+
+function updateKDEPanel(mode) {
+  const shops    = kdeEnrich(KDE_SHOPS);
+  const inside   = shops.filter(s => s.inside);
+  const kdeTotal = inside.reduce((sum, s) => sum + s.k, 0);
+  const container = document.getElementById('kde-panel');
+
+  const rows = shops.map(s => {
+    let cls, val;
+    if (mode === 'count') {
+      cls = s.inside ? 'hi' : 'out';
+      val = s.inside ? '+1' : '—';
+    } else {
+      val = fmtK(s.k);
+      cls = !s.inside ? 'out' : s.k >= 0.7 ? 'hi' : s.k >= 0.25 ? 'med' : 'lo';
+    }
+    return `<div class="kde-shop-row">
+      <span><strong>Shop ${s.id}</strong><span class="kde-shop-dist"> ${s.distM}m</span></span>
+      <span class="kde-contrib ${cls}">${val}</span>
+    </div>`;
+  }).join('');
+
+  // Build callout text dynamically based on which shops are actually inside
+  let callout;
+  if (mode === 'count') {
+    if (inside.length === 0) {
+      callout = `No shops fall within the ${KDE_BUFFER_M}m buffer. Try increasing the buffer size.`;
+    } else if (inside.length === 1) {
+      callout = `Only Shop ${inside[0].id} (${inside[0].distM}m) is within the ${KDE_BUFFER_M}m buffer — it scores <strong>+1</strong>.`;
+    } else {
+      const nearest  = inside.reduce((a, b) => a.distM < b.distM ? a : b);
+      const furthest = inside.reduce((a, b) => a.distM > b.distM ? a : b);
+      const gap      = furthest.distM - nearest.distM;
+      callout = `Shop ${nearest.id} (${nearest.distM}m) scores <strong>+1</strong> — identical to Shop ${furthest.id} (${furthest.distM}m), despite being ${gap}m closer. Simple counting cannot distinguish the two.`;
+    }
+  } else {
+    if (inside.length === 0) {
+      callout = `No shops within ${KDE_BUFFER_M}m — density score is 0. Try increasing the buffer size.`;
+    } else if (inside.length === 1) {
+      const s = inside[0];
+      const kDisp = s.k < 0.005 ? '<0.01' : s.k.toFixed(2);
+      callout = `Only Shop ${s.id} (${s.distM}m) is within the ${KDE_BUFFER_M}m buffer, contributing <strong>${kDisp}</strong>. Its proximity to the buffer edge keeps the weight low — compare with other buffer sizes.`;
+    } else {
+      const hi    = inside.reduce((a, b) => a.k > b.k ? a : b);
+      const lo    = inside.reduce((a, b) => a.k < b.k ? a : b);
+      const hiD   = hi.k.toFixed(2);
+      const loD   = lo.k < 0.005 ? '<0.01' : lo.k.toFixed(2);
+      const ratio = lo.k < 0.005 ? '100+' : (hi.k / lo.k).toFixed(0) + '×';
+      callout = `Shop ${hi.id} (${hi.distM}m) contributes <strong>${hiD}</strong>. Shop ${lo.id} (${lo.distM}m) contributes only <strong>${loD}</strong> — a ${ratio} difference that reflects their real difference in proximity.`;
+    }
+  }
+
+  if (mode === 'count') {
+    container.innerHTML = `
+      <h4>Simple Buffer Count</h4>
+      <div class="kde-score-big">${inside.length}</div>
+      <div class="kde-score-label">shops within ${KDE_BUFFER_M}m</div>
+      ${rows}
+      <div class="kde-callout">${callout}</div>`;
+  } else {
+    container.innerHTML = `
+      <h4>Kernel Density Score</h4>
+      <div class="kde-score-big">${kdeTotal.toFixed(2)}</div>
+      <div class="kde-score-label">weighted density units</div>
+      ${rows}
+      <div class="kde-callout">${callout}</div>`;
+  }
+}
+
+function drawKernelDecayChart() {
+  const container = document.getElementById('kernel-chart');
+  if (!container) return;
+  container.innerHTML = '';
+  const B  = KDE_BUFFER_M;           // current bandwidth in metres
+  const W  = container.clientWidth || 600;
+  const H  = 220;
+  const M  = { top: 16, right: 30, bottom: 46, left: 52 };
+  const w  = W - M.left - M.right;
+  const h  = H - M.top - M.bottom;
+
+  const svg = d3.select('#kernel-chart').append('svg')
+    .attr('width', W).attr('height', H)
+    .attr('font-family', 'Inter, sans-serif');
+  const g = svg.append('g').attr('transform', `translate(${M.left},${M.top})`);
+
+  // X domain: always show at least 1300m so all shops are visible
+  const xMax = Math.max(1300, B + 200);
+  const x = d3.scaleLinear().domain([0, xMax]).range([0, w]);
+  const y = d3.scaleLinear().domain([0, 1]).range([h, 0]);
+
+  // Kernel curve for current bandwidth
+  const pts = d3.range(0, xMax + 1, 2).map(d => ({
+    d, k: d < B ? Math.pow(1 - Math.pow(d/B, 2), 2) : 0
+  }));
+
+  g.append('path').datum(pts)
+    .attr('d', d3.area().x(d => x(d.d)).y0(h).y1(d => y(d.k)).curve(d3.curveBasis))
+    .attr('fill', 'rgba(21,101,192,0.10)');
+  g.append('path').datum(pts)
+    .attr('d', d3.line().x(d => x(d.d)).y(d => y(d.k)).curve(d3.curveBasis))
+    .attr('fill', 'none').attr('stroke', '#1565c0').attr('stroke-width', 2.5);
+
+  // Buffer boundary line
+  const bxPos = x(B);
+  g.append('line')
+    .attr('x1', bxPos).attr('x2', bxPos).attr('y1', 0).attr('y2', h)
+    .attr('stroke', '#ef5350').attr('stroke-width', 1.5).attr('stroke-dasharray', '5,3');
+  const labelAnchor = bxPos > w * 0.75 ? 'end' : 'start';
+  const labelOffset = bxPos > w * 0.75 ? -6 : 6;
+  g.append('text')
+    .attr('x', bxPos + labelOffset).attr('y', 13)
+    .attr('fill', '#ef5350').attr('font-size', 11).attr('text-anchor', labelAnchor)
+    .text(`${B}m cutoff`);
+
+  // All 6 shops — inside buffer get colour + k value, outside get grey at y=h
+  const allShops = kdeEnrich(KDE_SHOPS);
+  const shopCols = ['#1565c0', '#00796b', '#00796b', '#f59e0b', '#9e9e9e', '#bdbdbd'];
+  // Stagger labels to avoid B/C overlap
+  const labelOffsets = { A: -10, B: -10, C: 14, D: -10, E: -10, F: -10 };
+
+  allShops.forEach((s, i) => {
+    const dm  = s.distM;
+    const col = s.inside ? shopCols[i] : '#ccc';
+    const kv  = s.inside ? s.k : 0;
+    const cy  = s.inside ? y(kv) : h;
+
+    // Drop line only for inside shops
+    if (s.inside) {
+      g.append('line')
+        .attr('x1', x(dm)).attr('x2', x(dm)).attr('y1', cy).attr('y2', h)
+        .attr('stroke', col).attr('stroke-width', 1).attr('stroke-dasharray', '3,2').attr('opacity', 0.4);
+    }
+    // Dot
+    g.append('circle')
+      .attr('cx', x(dm)).attr('cy', cy)
+      .attr('r', s.inside ? 5 : 4)
+      .attr('fill', col).attr('stroke', '#fff').attr('stroke-width', 2)
+      .attr('opacity', s.inside ? 1 : 0.5);
+    // Label
+    const ldy = s.inside ? cy + (labelOffsets[s.id] || -10) : h + 14;
+    g.append('text')
+      .attr('x', x(dm)).attr('y', ldy)
+      .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', col).attr('font-weight', 600)
+      .text(`${s.id}`);
+  });
+
+  // Axes
+  const tickStep = xMax <= 1000 ? 200 : 300;
+  const ticks = d3.range(0, xMax + 1, tickStep);
+  g.append('g').attr('transform', `translate(0,${h})`)
+    .call(d3.axisBottom(x).tickValues(ticks).tickFormat(d => d+'m'))
+    .selectAll('text').attr('fill', '#5c6a7a').attr('font-size', 11);
+  g.append('g')
+    .call(d3.axisLeft(y).ticks(5).tickFormat(d3.format('.1f')))
+    .selectAll('text').attr('fill', '#5c6a7a').attr('font-size', 11);
+  g.selectAll('.domain, .tick line').attr('stroke', '#dde3ec');
+
+  // Axis labels
+  g.append('text').attr('x', w/2).attr('y', h+38)
+    .attr('text-anchor', 'middle').attr('fill', '#5c6a7a').attr('font-size', 12)
+    .text('Distance from home (metres)');
+  g.append('text').attr('transform', 'rotate(-90)').attr('x', -h/2).attr('y', -40)
+    .attr('text-anchor', 'middle').attr('fill', '#5c6a7a').attr('font-size', 12)
+    .text('Contribution weight');
+}
+
+/* ══════════════════════════════════════════
+   TABLE 1 EXPLORER
+══════════════════════════════════════════ */
+function renderExplorer(key) {
+  const d = EXPLORER_DATA[key];
+  const container = document.getElementById(`explorer-${key}`);
+  const max = Math.max(...d.rows.map(r => r.pct));
+
+  let html = `<div class="explorer-header">
+    <div><strong style="font-size:15px">${d.title}</strong></div>
+    <div class="overall">Overall smoking rate in analysis sample: <strong>${d.overall.toFixed(1)}%</strong></div>
+  </div>`;
+
+  d.rows.forEach(row => {
+    const w = (row.pct / 70) * 100; // scale to 70% max for readability
+    const refW = (d.overall / 70) * 100;
+    const color = row.pct > d.overall + 2 ? '#c62828'
+                : row.pct < d.overall - 2 ? '#388e3c'
+                : '#1565c0';
+    html += `
+    <div class="bar-row">
+      <div class="bar-label">${row.label}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${w}%;background:${color};">${row.pct.toFixed(1)}%</div>
+        <div class="bar-ref-line" style="left:${refW}%;" title="Overall average: ${d.overall}%"></div>
+      </div>
+      <div class="bar-n">n = ${row.n.toLocaleString()}</div>
+    </div>`;
+  });
+
+  html += `<p style="font-size:12px;color:#9db5cb;margin-top:14px;">Vertical line shows overall average (${d.overall}%). Red bars: above average; green bars: below average. Raw rates from analysis sample — not adjusted for confounders.</p>`;
+  container.innerHTML = html;
+}
+
+function showExplorer(key, btn) {
+  document.querySelectorAll('.explorer-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.explorer-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById(`explorer-${key}`).classList.add('active');
+  btn.classList.add('active');
+}
+
+/* ══════════════════════════════════════════
+   POLICY SIMULATOR
+══════════════════════════════════════════ */
+function updateSimulator(val) {
+  const pct = parseInt(val);
+  document.getElementById('sim-pct').textContent = pct + '%';
+
+  // Assumptions
+  const birthsInHighDensity = 6500;   // ~13% of 50,000
+  const currentSmokingRate  = 0.535;
+  const targetSmokingRate   = 0.463;  // rate at zero density (Group 0 raw)
+  const maxReduction        = birthsInHighDensity * (currentSmokingRate - targetSmokingRate); // ~468
+  const annualReduction     = Math.round(maxReduction * pct / 100);
+  const totalScotSmokingPreg = 5400;  // ~50k births × 10.8% smoking rate
+  const reductionPct        = (annualReduction / totalScotSmokingPreg * 100).toFixed(1);
+  const currentSmoking      = Math.round(birthsInHighDensity * currentSmokingRate);
+  const newSmoking          = currentSmoking - annualReduction;
+  const barW                = Math.round(pct * 1);
+
+  document.getElementById('sim-count').textContent = annualReduction.toLocaleString();
+  document.getElementById('sim-pct2').textContent  = reductionPct + '%';
+  document.getElementById('sim-of').textContent    = `${currentSmoking.toLocaleString()} → ${newSmoking.toLocaleString()}`;
+  document.getElementById('sim-bar').style.width   = barW + '%';
+}
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+function init() {
+  drawForestPlot('m1');
+  drawDoseResponse();
+  setKDEMode('count');
+  drawKernelDecayChart();
+  Object.keys(EXPLORER_DATA).forEach(renderExplorer);
+  updateSimulator(50);
+
+  // Redraw on resize
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      drawForestPlot(currentModel);
+      drawDoseResponse();
+      drawKDEDiagram(kdeMode);
+      d3.select('#kernel-chart').html('');
+      drawKernelDecayChart();
+    }, 150);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

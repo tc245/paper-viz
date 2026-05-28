@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>Count vs Kernel Density — Interactive</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:   #0d2137;
+      --blue:   #1565c0;
+      --card:   #ffffff;
+      --bg:     #f0f4f9;
+      --text:   #1a2332;
+      --muted:  #5c6a7a;
+      --border: #dde3ec;
+      --r:      10px;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.5;
+      padding: 18px 22px 22px;
+    }
+
+    .title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 14px;
+    }
+
+    /* ── Controls ───────────────────────── */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .toggle-group { display: flex; gap: 8px; }
+    .toggle {
+      padding: 8px 18px; border-radius: 7px;
+      border: 2px solid var(--border);
+      background: transparent; font-size: 13px; font-weight: 500;
+      cursor: pointer; color: var(--muted);
+      transition: all 0.15s; font-family: inherit;
+    }
+    .toggle.active { background: var(--navy); border-color: var(--navy); color: #fff; }
+    .toggle:hover:not(.active) { border-color: var(--navy); color: var(--navy); }
+
+    .buf-row {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 7px 14px;
+    }
+    .buf-label { font-size: 12px; color: var(--muted); white-space: nowrap; font-weight: 500; }
+    .buf-slider {
+      width: 130px; cursor: pointer;
+      -webkit-appearance: none; appearance: none;
+      height: 5px; border-radius: 3px; outline: none;
+      background: var(--border);
+    }
+    .buf-slider::-webkit-slider-runnable-track { height: 5px; border-radius: 3px; background: var(--border); }
+    .buf-slider::-moz-range-track { height: 5px; border-radius: 3px; background: var(--border); }
+    input.buf-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 18px; height: 18px;
+      border-radius: 50%; background: var(--blue); cursor: pointer;
+      margin-top: -7px; box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+    }
+    .buf-slider::-moz-range-thumb {
+      width: 18px; height: 18px; border-radius: 50%;
+      border: none; background: var(--blue); cursor: pointer;
+    }
+    .buf-val  { font-size: 1.05rem; font-weight: 700; color: var(--blue); min-width: 48px; }
+    .buf-note { font-size: 11px; color: var(--muted); }
+    .buf-note.paper { color: #388e3c; font-weight: 500; }
+
+    .reset-btn {
+      margin-left: auto;
+      font-size: 12px; padding: 6px 14px; border-radius: 6px;
+      border: 1px solid var(--border); background: transparent;
+      color: var(--muted); cursor: pointer; font-family: inherit;
+      transition: all 0.15s;
+    }
+    .reset-btn:hover { border-color: var(--navy); color: var(--navy); }
+
+    /* ── Toolbar ────────────────────────── */
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .hint { font-size: 12px; color: var(--muted); }
+    .hint kbd {
+      font-family: inherit; background: var(--border); border-radius: 3px;
+      padding: 1px 5px; font-size: 11px; color: var(--text);
+    }
+
+    /* ── Viz grid ───────────────────────── */
+    .viz-grid {
+      display: grid;
+      grid-template-columns: 1fr 260px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .diagram-wrap {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 12px; overflow: hidden;
+    }
+    .diagram-wrap svg { width: 100%; height: auto; display: block; transition: opacity 0.2s; user-select: none; }
+
+    /* ── Panel ──────────────────────────── */
+    .panel {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 18px;
+    }
+    .panel h4 { font-size: 0.92rem; color: var(--navy); margin-bottom: 6px; }
+    .score-big { font-size: 2.5rem; font-weight: 700; color: var(--blue); line-height: 1; margin: 4px 0 2px; }
+    .score-label { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+    .shop-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+    }
+    .shop-row:last-of-type { border-bottom: none; }
+    .shop-dist { color: var(--muted); font-size: 11px; margin-left: 4px; }
+    .contrib { font-weight: 700; min-width: 44px; text-align: right; }
+    .contrib.hi  { color: #1565c0; }
+    .contrib.med { color: #00796b; }
+    .contrib.lo  { color: #9e9e9e; }
+    .contrib.out { color: #ccc; }
+    .callout {
+      background: #e3eef9; border-left: 3px solid var(--blue);
+      padding: 9px 12px; border-radius: 0 7px 7px 0;
+      font-size: 12px; margin-top: 12px; color: var(--text); line-height: 1.5;
+    }
+    .panel-note { font-size: 11px; color: #aab; margin-top: 10px; }
+
+    @media (max-width: 680px) {
+      .viz-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="title">Simple Count vs Kernel Density: interactive example</div>
+
+<div class="controls">
+  <div class="toggle-group">
+    <button id="btn-count" class="toggle active" onclick="setMode('count')">Simple buffer count</button>
+    <button id="btn-kde"   class="toggle"        onclick="setMode('kde')">Kernel density</button>
+  </div>
+  <div class="buf-row">
+    <span class="buf-label">Buffer:</span>
+    <input type="range" class="buf-slider" id="buf-slider"
+           min="300" max="1200" step="50" value="800"
+           oninput="updateBuffer(+this.value)">
+    <span class="buf-val"  id="buf-val">800m</span>
+    <span class="buf-note paper" id="buf-note">← as used in the paper</span>
+  </div>
+  <button class="reset-btn" onclick="resetShops()">Reset shops</button>
+</div>
+
+<div class="toolbar">
+  <span class="hint">
+    <kbd>drag</kbd> to move &nbsp;·&nbsp;
+    <kbd>click</kbd> empty space to add &nbsp;·&nbsp;
+    <kbd>×</kbd> to remove
+  </span>
+</div>
+
+<div class="viz-grid">
+  <div class="diagram-wrap">
+    <svg id="diagram" viewBox="0 0 580 340" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+  <div id="panel" class="panel"></div>
+</div>
+
+<script>
+/* ── State ────────────────────────────────────── */
+const HOME   = { x: 280, y: 185 };
+const M_PX   = 800 / 155;    // metres per SVG pixel (fixed scale)
+let BW_PX    = 155;           // bandwidth pixels (mutable)
+let BUFFER_M = 800;
+let mode     = 'count';
+
+const COLORS = [
+  '#1565c0','#00796b','#e65100','#6a1b9a',
+  '#c62828','#2e7d32','#0277bd','#4a148c',
+  '#558b2f','#ad1457','#00838f','#f9a825',
+];
+
+const DEFAULT_SHOPS = [
+  { id:'A', x:312, y:148 }, { id:'B', x:375, y:192 },
+  { id:'C', x:200, y:245 }, { id:'D', x:290, y:295 },
+  { id:'E', x:160, y:135 }, { id:'F', x:450, y:210 },
+];
+
+let shops       = DEFAULT_SHOPS.map(s => ({ ...s }));
+let nextCode    = 71;   // 'G'
+let drag        = null;
+let wasDragging = false;
+
+/* ── Maths ───────────────────────────────────── */
+function kernel(distPx) {
+  if (distPx >= BW_PX) return 0;
+  const t = distPx / BW_PX;
+  return (1 - t * t) * (1 - t * t);
+}
+
+function enrich(arr) {
+  return arr.map(s => {
+    const d = Math.hypot(s.x - HOME.x, s.y - HOME.y);
+    return { ...s, distPx: d,
+             distM:  Math.round(d * M_PX / 10) * 10,
+             k:      kernel(d),
+             inside: d < BW_PX };
+  });
+}
+
+function fmtK(k) {
+  if (k <= 0)    return '—';
+  if (k < 0.005) return '+<0.01';
+  return '+' + k.toFixed(2);
+}
+
+function shopColor(idx) { return COLORS[idx % COLORS.length]; }
+
+/* ── Shop helpers ─────────────────────────────── */
+function resetShops() {
+  shops = DEFAULT_SHOPS.map(s => ({ ...s }));
+  nextCode = 71;
+  redraw();
+}
+
+function nextId() {
+  if (nextCode <= 90) return String.fromCharCode(nextCode++);
+  return String(nextCode++ - 64);
+}
+
+/* ── SVG coordinates ──────────────────────────── */
+function svgPt(svg, cx, cy) {
+  const pt = svg.createSVGPoint();
+  pt.x = cx; pt.y = cy;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+
+/* ── Redraw ───────────────────────────────────── */
+function redraw() { drawDiagram(mode); updatePanel(mode); }
+
+/* ── Draw diagram ─────────────────────────────── */
+function drawDiagram(m) {
+  const ns  = 'http://www.w3.org/2000/svg';
+  const svg = document.getElementById('diagram');
+  svg.innerHTML = '';
+  const enriched = enrich(shops);
+
+  function el(tag, attrs, parent) {
+    const e = document.createElementNS(ns, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function txt(str, attrs, parent) {
+    const e = el('text', attrs, parent);
+    e.textContent = str;
+    return e;
+  }
+
+  const defs = el('defs', {}, svg);
+  const cp   = el('clipPath', { id: 'clip' }, defs);
+  el('rect', { x: 0, y: 0, width: 580, height: 340 }, cp);
+
+  if (m === 'kde') {
+    // One gradient per shop (by index so id stays consistent)
+    enriched.forEach((s, idx) => {
+      if (!s.inside) return;
+      const gr = el('radialGradient', { id: `gr${idx}`, cx:'50%', cy:'50%', r:'50%' }, defs);
+      el('stop', { offset:'0%',   'stop-color': shopColor(idx), 'stop-opacity': (s.k * 0.5).toFixed(3) }, gr);
+      el('stop', { offset:'100%', 'stop-color': shopColor(idx), 'stop-opacity': '0' }, gr);
+    });
+  }
+
+  const g = el('g', { 'clip-path': 'url(#clip)' }, svg);
+
+  // Transparent click target
+  el('rect', { x:0, y:0, width:580, height:340, fill:'transparent', 'data-bg':'1' }, g);
+
+  // Grid
+  for (let x = 0; x <= 580; x += 40)
+    el('line', { x1:x, y1:0, x2:x, y2:340, stroke:'#edf0f5', 'stroke-width':1, 'pointer-events':'none' }, g);
+  for (let y = 0; y <= 340; y += 40)
+    el('line', { x1:0, y1:y, x2:580, y2:y, stroke:'#edf0f5', 'stroke-width':1, 'pointer-events':'none' }, g);
+
+  // KDE heat glow
+  if (m === 'kde') {
+    enriched.forEach((s, idx) => {
+      if (!s.inside) return;
+      el('circle', { cx:s.x, cy:s.y, r:BW_PX, fill:`url(#gr${idx})`, 'pointer-events':'none' }, g);
+    });
+  }
+
+  // Buffer circle (count mode)
+  if (m === 'count') {
+    el('circle', { cx:HOME.x, cy:HOME.y, r:BW_PX,
+      fill:'rgba(21,101,192,0.05)', stroke:'#1565c0',
+      'stroke-width':2, 'stroke-dasharray':'8,5', 'pointer-events':'none' }, g);
+    const lx = Math.min(574, HOME.x + BW_PX - 8);
+    const ly = Math.max(14, HOME.y - BW_PX + 14);
+    txt(`${BUFFER_M}m buffer`, { x:lx, y:ly,
+      fill:'#1565c0', 'font-size':11, 'font-family':'system-ui,sans-serif',
+      'text-anchor':'end', 'font-weight':600, 'pointer-events':'none' }, g);
+  }
+
+  // Shops
+  enriched.forEach((s, idx) => {
+    const col  = shopColor(idx);
+    const fill = s.inside ? col : '#bdbdbd';
+    const strk = s.inside ? col : '#9e9e9e';
+
+    const sg = el('g', { 'data-shop-idx': String(idx), style:'cursor:grab' }, g);
+    el('rect', { x:s.x-10, y:s.y-10, width:20, height:20, rx:4,
+                 fill, stroke:strk, 'stroke-width':1.5 }, sg);
+
+    txt(`Shop ${s.id}`, { x:s.x, y:s.y+25, 'text-anchor':'middle',
+      'font-size':11, 'font-family':'system-ui,sans-serif',
+      fill: s.inside ? '#333' : '#bdbdbd', 'font-weight':600, 'pointer-events':'none' }, sg);
+    txt(`${s.distM}m`, { x:s.x, y:s.y+37, 'text-anchor':'middle',
+      'font-size':10, 'font-family':'system-ui,sans-serif',
+      fill: s.inside ? '#666' : '#d0d0d0', 'pointer-events':'none' }, sg);
+
+    if (!s.inside)
+      txt(`outside ${BUFFER_M}m`, { x:s.x, y:s.y-16, 'text-anchor':'middle',
+        'font-size':10, 'font-family':'system-ui,sans-serif',
+        fill:'#bdbdbd', 'pointer-events':'none' }, sg);
+
+    if (m === 'kde' && s.inside) {
+      const kLabel = s.k < 0.005 ? '<0.01' : s.k.toFixed(2);
+      const bx = s.x + 11, by = s.y - 23;
+      el('rect', { x:bx, y:by, width:40, height:16, rx:4, fill:col, 'pointer-events':'none' }, sg);
+      txt(`+${kLabel}`, { x:bx+20, y:by+11, 'text-anchor':'middle',
+        'font-size':10, 'font-family':'system-ui,sans-serif',
+        fill:'white', 'font-weight':700, 'pointer-events':'none' }, sg);
+    }
+
+    // Delete button
+    const dg = el('g', { 'data-delete-idx': String(idx), style:'cursor:pointer' }, sg);
+    el('circle', { cx:s.x+9, cy:s.y-9, r:7, fill:'#ef5350', stroke:'white', 'stroke-width':1.5 }, dg);
+    txt('×', { x:s.x+9, y:s.y-5, 'text-anchor':'middle',
+      'font-size':11, 'font-family':'system-ui,sans-serif',
+      fill:'white', 'font-weight':700, 'pointer-events':'none' }, dg);
+  });
+
+  // Home icon
+  const hg = el('g', { transform:`translate(${HOME.x},${HOME.y})`, 'data-home':'1' }, g);
+  el('polygon', { points:'-16,-14 0,-30 16,-14', fill:'#0d2137', stroke:'white', 'stroke-width':2 }, hg);
+  el('rect', { x:-13, y:-14, width:26, height:24, fill:'#0d2137', stroke:'white', 'stroke-width':2 }, hg);
+  el('rect', { x:-6, y:-1, width:12, height:11, rx:2, fill:'white', opacity:0.85 }, hg);
+  txt('Home', { x:0, y:28, 'text-anchor':'middle',
+    'font-size':12, 'font-family':'system-ui,sans-serif',
+    fill:'#0d2137', 'font-weight':700, 'pointer-events':'none' }, hg);
+}
+
+/* ── Update panel ─────────────────────────────── */
+function updatePanel(m) {
+  const enriched = enrich(shops);
+  const inside   = enriched.filter(s => s.inside);
+  const kTotal   = inside.reduce((sum, s) => sum + s.k, 0);
+
+  const rows = enriched.map((s, idx) => {
+    const col = shopColor(idx);
+    let cls, val;
+    if (m === 'count') {
+      cls = s.inside ? 'hi' : 'out'; val = s.inside ? '+1' : '—';
+    } else {
+      val = fmtK(s.k);
+      cls = !s.inside ? 'out' : s.k >= 0.7 ? 'hi' : s.k >= 0.25 ? 'med' : 'lo';
+    }
+    const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;`
+              + `background:${s.inside ? col : '#ccc'};margin-right:5px;flex-shrink:0"></span>`;
+    return `<div class="shop-row">
+      <span style="display:flex;align-items:center">${dot}<strong>Shop ${s.id}</strong>`
+      + `<span class="shop-dist"> ${s.distM}m</span></span>
+      <span class="contrib ${cls}">${val}</span></div>`;
+  }).join('');
+
+  let callout;
+  if (m === 'count') {
+    if (inside.length === 0) {
+      callout = `No shops within ${BUFFER_M}m. Increase the buffer or drag a shop closer.`;
+    } else if (inside.length === 1) {
+      callout = `Only Shop ${inside[0].id} (${inside[0].distM}m) is within ${BUFFER_M}m — scores <strong>+1</strong>.`;
+    } else {
+      const near = inside.reduce((a, b) => a.distM < b.distM ? a : b);
+      const far  = inside.reduce((a, b) => a.distM > b.distM ? a : b);
+      callout = `Shop ${near.id} (${near.distM}m) scores <strong>+1</strong> — identical to `
+              + `Shop ${far.id} (${far.distM}m), despite being ${far.distM - near.distM}m closer. `
+              + `A simple count can't tell the difference.`;
+    }
+  } else {
+    if (inside.length === 0) {
+      callout = `No shops within ${BUFFER_M}m — density score is 0.`;
+    } else if (inside.length === 1) {
+      const s = inside[0];
+      const kD = s.k < 0.005 ? '<0.01' : s.k.toFixed(2);
+      callout = `Only Shop ${s.id} (${s.distM}m) within the buffer, contributing <strong>${kD}</strong>.`;
+    } else {
+      const hi    = inside.reduce((a, b) => a.k > b.k ? a : b);
+      const lo    = inside.reduce((a, b) => a.k < b.k ? a : b);
+      const ratio = lo.k < 0.005 ? '100+' : (hi.k / lo.k).toFixed(0) + '×';
+      const loD   = lo.k < 0.005 ? '<0.01' : lo.k.toFixed(2);
+      callout = `Shop ${hi.id} (${hi.distM}m) contributes <strong>${hi.k.toFixed(2)}</strong>; `
+              + `Shop ${lo.id} (${lo.distM}m) just <strong>${loD}</strong> — a ${ratio} `
+              + `difference reflecting real proximity.`;
+    }
+  }
+
+  const score = m === 'count'
+    ? `<h4>Simple Buffer Count</h4>
+       <div class="score-big">${inside.length}</div>
+       <div class="score-label">shops within ${BUFFER_M}m</div>`
+    : `<h4>Kernel Density Score</h4>
+       <div class="score-big">${kTotal.toFixed(2)}</div>
+       <div class="score-label">weighted density units</div>`;
+
+  document.getElementById('panel').innerHTML =
+    `${score}${rows}<div class="callout">${callout}</div>`
+    + `<p class="panel-note">Drag shops to update scores live.</p>`;
+}
+
+/* ── Controls ─────────────────────────────────── */
+function setMode(m) {
+  mode = m;
+  document.getElementById('btn-count').classList.toggle('active', m === 'count');
+  document.getElementById('btn-kde').classList.toggle('active', m === 'kde');
+  const svg = document.getElementById('diagram');
+  svg.style.opacity = '0';
+  setTimeout(() => { drawDiagram(m); svg.style.opacity = '1'; }, 180);
+  updatePanel(m);
+}
+
+function updateBuffer(m) {
+  BUFFER_M = m;
+  BW_PX    = m * 155 / 800;
+  document.getElementById('buf-val').textContent = m + 'm';
+  const note = document.getElementById('buf-note');
+  note.textContent = m === 800 ? '← as used in the paper' : '(paper used 800m)';
+  note.className   = 'buf-note' + (m === 800 ? ' paper' : '');
+  redraw();
+}
+
+/* ── Drag & click ─────────────────────────────── */
+function initEvents() {
+  const svg = document.getElementById('diagram');
+
+  function startDrag(target, cx, cy) {
+    if (target.closest('[data-delete-idx]')) return;
+    const shopEl = target.closest('[data-shop-idx]');
+    if (!shopEl) return;
+    const idx = parseInt(shopEl.dataset.shopIdx);
+    const pt  = svgPt(svg, cx, cy);
+    drag = { idx, ox: shops[idx].x - pt.x, oy: shops[idx].y - pt.y };
+    wasDragging = false;
+    svg.style.cursor = 'grabbing';
+  }
+
+  function moveDrag(cx, cy) {
+    if (!drag) return;
+    const pt = svgPt(svg, cx, cy);
+    const nx = Math.max(16, Math.min(564, Math.round(pt.x + drag.ox)));
+    const ny = Math.max(16, Math.min(324, Math.round(pt.y + drag.oy)));
+    if (nx !== shops[drag.idx].x || ny !== shops[drag.idx].y) {
+      wasDragging = true;
+      shops[drag.idx].x = nx;
+      shops[drag.idx].y = ny;
+      redraw();
+    }
+  }
+
+  function endDrag() {
+    if (!drag) return;
+    drag = null; wasDragging = false;
+    svg.style.cursor = '';
+  }
+
+  svg.addEventListener('mousedown', e => { startDrag(e.target, e.clientX, e.clientY); if (drag) e.preventDefault(); });
+  window.addEventListener('mousemove', e => moveDrag(e.clientX, e.clientY));
+  window.addEventListener('mouseup', endDrag);
+
+  svg.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    startDrag(e.target, e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+  window.addEventListener('touchmove', e => {
+    if (!drag || e.touches.length !== 1) return;
+    moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+    e.preventDefault();
+  }, { passive: false });
+  window.addEventListener('touchend', endDrag);
+
+  svg.addEventListener('click', e => {
+    const was = wasDragging; wasDragging = false;
+    if (was) return;
+    const del = e.target.closest('[data-delete-idx]');
+    if (del) { shops.splice(parseInt(del.dataset.deleteIdx), 1); redraw(); return; }
+    if (!e.target.closest('[data-shop-idx]') && !e.target.closest('[data-home]')) {
+      const pt = svgPt(svg, e.clientX, e.clientY);
+      if (pt.x < 10 || pt.x > 570 || pt.y < 10 || pt.y > 330) return;
+      shops.push({ id: nextId(), x: Math.round(pt.x), y: Math.round(pt.y) });
+      redraw();
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => { redraw(); initEvents(); });
+</script>
+</body>
+</html>
